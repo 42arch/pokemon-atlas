@@ -1,0 +1,253 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { parse } from 'csv-parse/sync'
+
+const RAW_DIR = path.join(process.cwd(), 'scripts/raw')
+const OUTPUT_PATH = path.join(process.cwd(), 'public/graph-data.json')
+
+function readCsv(filename: string) {
+  const content = fs.readFileSync(path.join(RAW_DIR, filename), 'utf8')
+  return parse(content, { columns: true, skip_empty_lines: true })
+}
+
+function getLocalized(records: any[], idField: string, id: string) {
+  const matches = records.filter((r) => r[idField] === id)
+  const zhHans = matches.find((r) => r.local_language_id === '12')
+  const zhHant = matches.find((r) => r.local_language_id === '4')
+  const en = matches.find((r) => r.local_language_id === '9')
+  return zhHans?.name || zhHant?.name || en?.name || 'Unknown'
+}
+
+const typeMap: Record<string, string> = {
+  normal: '一般',
+  fire: '火',
+  water: '水',
+  grass: '草',
+  electric: '电',
+  ice: '冰',
+  fighting: '格斗',
+  poison: '毒',
+  ground: '地面',
+  flying: '飞行',
+  psychic: '超能力',
+  bug: '虫',
+  rock: '岩石',
+  ghost: '幽灵',
+  dragon: '龙',
+  dark: '恶',
+  steel: '钢',
+  fairy: '妖精',
+  stellar: '星晶',
+  unknown: '未知',
+}
+
+function buildConditionsSummary(edge: any, triggers: any[]) {
+  const parts: string[] = []
+  
+  if (edge.evolution_trigger_id) {
+    const triggerName = getLocalized(triggers, 'evolution_trigger_id', edge.evolution_trigger_id)
+    parts.push(`方式: ${triggerName}`)
+  }
+  if (edge.minimum_level) parts.push(`等级: ${edge.minimum_level}`)
+  if (edge.trigger_item_id) parts.push(`道具: ${edge.trigger_item_id}`) // Ideally we'd translate item_id
+  if (edge.minimum_happiness) parts.push(`亲密度: ${edge.minimum_happiness}`)
+  if (edge.minimum_beauty) parts.push(`美丽度: ${edge.minimum_beauty}`)
+  if (edge.minimum_affection) parts.push(`友好度: ${edge.minimum_affection}`)
+  if (edge.time_of_day) parts.push(`时段: ${edge.time_of_day}`)
+  
+  return parts.join(' | ') || '基础进化关系'
+}
+
+function main() {
+  console.log('Reading CSV files...')
+  
+  const pokemonRaw = readCsv('pokemon.csv')
+  const speciesRaw = readCsv('pokemon_species.csv')
+  const speciesNames = readCsv('pokemon_species_names.csv')
+  const pokemonTypes = readCsv('pokemon_types.csv')
+  const typesRaw = readCsv('types.csv')
+  const typeNames = readCsv('type_names.csv')
+  const statsRaw = readCsv('pokemon_stats.csv')
+  const evoRaw = readCsv('pokemon_evolution.csv')
+  const triggerProse = readCsv('evolution_trigger_prose.csv')
+  const formsRaw = readCsv('pokemon_forms.csv')
+  const formNamesRaw = readCsv('pokemon_form_names.csv')
+
+  const nodes: any[] = []
+  const links: any[] = []
+
+  // 1. Types
+  const typeDict = new Map<string, any>()
+  typesRaw.forEach((t: any) => {
+    const tId = t.id
+    const tName = typeMap[t.identifier] || getLocalized(typeNames, 'type_id', tId)
+    const tSlug = t.identifier
+    const tNodeId = `type-${tSlug}`
+    
+    typeDict.set(tId, { id: tNodeId, name: tName, slug: tSlug })
+    
+    nodes.push({
+      id: tNodeId,
+      name: tName,
+      val: 50,
+      group: tName,
+      isType: true,
+    })
+  })
+
+  // 2. Pokemon stats
+  const pokemonBst = new Map<string, number>()
+  statsRaw.forEach((s: any) => {
+    const pid = s.pokemon_id
+    pokemonBst.set(pid, (pokemonBst.get(pid) || 0) + Number(s.base_stat))
+  })
+
+  // 3. Pokemon types
+  const pkmTypes = new Map<string, any[]>()
+  pokemonTypes.forEach((pt: any) => {
+    const pid = pt.pokemon_id
+    if (!pkmTypes.has(pid)) pkmTypes.set(pid, [])
+    const tInfo = typeDict.get(pt.type_id)
+    if (tInfo) {
+      pkmTypes.get(pid)!.push(tInfo)
+    }
+  })
+
+  // 4. Species mapping
+  const speciesInfo = new Map<string, any>()
+  speciesRaw.forEach((sp: any) => {
+    speciesInfo.set(sp.id, {
+      generation: Number(sp.generation_id),
+      evoChainId: sp.evolution_chain_id,
+      evolvesFrom: sp.evolves_from_species_id,
+    })
+  })
+
+  // 5. Form naming mapping
+  const pokemonToFormId = new Map<string, string>()
+  formsRaw.forEach((f: any) => {
+    if (f.is_default === '1') {
+      pokemonToFormId.set(f.pokemon_id, f.id)
+    }
+  })
+
+  // 6. Pokemon & species
+  const speciesToDefaultPokemon = new Map<string, string>()
+  // First pass: identify default pokemon for each species
+  pokemonRaw.forEach((p: any) => {
+    if (p.is_default === '1') {
+      speciesToDefaultPokemon.set(p.species_id, `pokemon-${p.id}`)
+    }
+  })
+
+  console.log(`Processing ${pokemonRaw.length} pokemon forms...`)
+  
+  pokemonRaw.forEach((p: any) => {
+    const pId = p.id
+    const spId = p.species_id
+    const sInfo = speciesInfo.get(spId)
+    
+    if (!sInfo) return
+    
+    const speciesBaseName = getLocalized(speciesNames, 'pokemon_species_id', spId) || p.identifier
+    let fullName = speciesBaseName
+
+    // If it's a special form, try to get the form name
+    if (p.is_default !== '1') {
+      const formId = pokemonToFormId.get(pId)
+      if (formId) {
+        const formName = getLocalized(formNamesRaw, 'pokemon_form_id', formId)
+        if (formName && formName !== 'Unknown' && !fullName.includes(formName)) {
+           fullName = `${speciesBaseName} (${formName})`
+        } else {
+           // Fallback to identifier parts if localized form name is missing
+           const formPart = p.identifier.replace(speciesBaseName.toLowerCase(), '').replace(/^-/, '')
+           if (formPart) {
+             fullName = `${speciesBaseName} (${formPart})`
+           }
+        }
+      }
+    }
+
+    const bst = pokemonBst.get(pId) || 300
+    const pTypes = pkmTypes.get(pId) || []
+    const primaryType = pTypes[0]?.name || '未知'
+
+    nodes.push({
+      id: `pokemon-${pId}`,
+      name: fullName,
+      val: Math.max(3, bst / 100),
+      group: primaryType,
+      sprite: pId,
+      types: pTypes.map(t => t.name),
+      generation: sInfo.generation,
+      pokedexNumber: String(spId).padStart(4, '0'),
+    })
+
+    // Add type links
+    pTypes.forEach(t => {
+      links.push({
+        source: `pokemon-${pId}`,
+        target: t.id,
+        value: 1,
+        type: 'type-link'
+      })
+    })
+
+    // Link special forms to their base form
+    const defaultPkmId = speciesToDefaultPokemon.get(spId)
+    if (defaultPkmId && defaultPkmId !== `pokemon-${pId}`) {
+      links.push({
+        source: defaultPkmId,
+        target: `pokemon-${pId}`,
+        value: 1,
+        type: 'form-link'
+      })
+    }
+  })
+
+  // 7. Evolutions
+  evoRaw.forEach((evo: any) => {
+    const toSpId = evo.evolved_species_id
+    const toSpInfo = speciesInfo.get(toSpId)
+    if (!toSpInfo || !toSpInfo.evolvesFrom) return
+    
+    const fromSpId = toSpInfo.evolvesFrom
+    const fromPkmId = speciesToDefaultPokemon.get(fromSpId)
+    const toPkmId = speciesToDefaultPokemon.get(toSpId)
+    
+    if (!fromPkmId || !toPkmId) return
+
+    const summary = buildConditionsSummary(evo, triggerProse)
+    const triggerName = evo.evolution_trigger_id ? getLocalized(triggerProse, 'evolution_trigger_id', evo.evolution_trigger_id) : 'unknown'
+
+    links.push({
+      source: fromPkmId,
+      target: toPkmId,
+      value: 1,
+      type: 'evolution',
+      trigger: triggerName,
+      minLevel: evo.minimum_level ? Number(evo.minimum_level) : null,
+      label: summary
+    })
+  })
+
+  // Write output
+  const output = {
+    metadata: {
+      source: "local CSV",
+      generatedAt: new Date().toISOString(),
+      nodes: nodes.length,
+      links: links.length,
+      typeCount: typeDict.size,
+      evolutionChainCount: new Set(Array.from(speciesInfo.values()).map(s => s.evoChainId)).size
+    },
+    nodes,
+    links
+  }
+
+  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2))
+  console.log(`Generated ${nodes.length} nodes and ${links.length} links to ${OUTPUT_PATH}`)
+}
+
+main()

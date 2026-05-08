@@ -209,7 +209,7 @@ export default function PokemonGraph() {
         for (const link of links) {
           const sourceId = getEndpointId(link.source)
           const targetId = getEndpointId(link.target)
-          if (link.type === 'evolution' && (sourceId === currId || targetId === currId)) {
+          if ((link.type === 'evolution' || link.type === 'form-link') && (sourceId === currId || targetId === currId)) {
             const nextId = sourceId === currId ? targetId : sourceId
             if (!visitedSearchNodes.has(nextId)) {
               visitedSearchNodes.add(nextId)
@@ -323,34 +323,6 @@ export default function PokemonGraph() {
     return adjacency.linkMap.get(selectedNodeId) || []
   }, [adjacency.linkMap, selectedNodeId])
 
-  const metadataCards = useMemo(() => {
-    if (!payload)
-      return []
-
-    return [
-      {
-        label: '可视节点',
-        value: filteredGraph.nodes.length,
-        accent: 'text-[#ffcf5a]',
-      },
-      {
-        label: '可视关系',
-        value: filteredGraph.links.length,
-        accent: 'text-[#7df2c0]',
-      },
-      {
-        label: '进化链',
-        value: payload.metadata.evolutionChainCount,
-        accent: 'text-[#89b4ff]',
-      },
-      {
-        label: '属性数',
-        value: payload.metadata.typeCount,
-        accent: 'text-[#ff91b5]',
-      },
-    ]
-  }, [filteredGraph.links.length, filteredGraph.nodes.length, payload])
-
   function focusNode(node: GraphNode) {
     setSelectedNodeId(node.id)
     setSelectedLinkId(null)
@@ -369,17 +341,6 @@ export default function PokemonGraph() {
       <main className="relative z-10 min-h-screen w-full overflow-hidden">
         {/* Full-screen Graph Scene */}
         <div className="absolute inset-0 z-0">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-4">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.28em] text-white/45">Knowledge Surface</div>
-              <h2 className="mt-2 text-2xl font-semibold text-white">属性与进化链视图</h2>
-            </div>
-            <div className="hidden border border-white/10 bg-black/40 px-3 py-2 text-right text-[11px] text-white/55 md:block">
-              <div>拖拽平移，滚轮缩放</div>
-              <div>点击节点聚焦，点击连线查看关系说明</div>
-            </div>
-          </div>
-
           {emptyState
             ? (
                 <div className="flex h-full items-center justify-center">
@@ -404,109 +365,95 @@ export default function PokemonGraph() {
               )}
         </div>
 
-        {/* Left Panel: Search & Filters */}
+        {/* Left Panel: App Title, Search & Filters */}
         <section className="pointer-events-none absolute bottom-4 left-4 top-4 z-10 flex w-80 flex-col gap-4 overflow-y-auto hidden-scrollbar">
           <div className="pointer-events-auto flex flex-col gap-4">
-          <Card className="border border-white/10 bg-black/40 backdrop-blur-xl">
-            <CardHeader>
-              <div className="flex items-center gap-3 text-[#ffcf5a]">
-                <ShareNetwork weight="fill" className="size-5" />
-                <div className="text-[11px] uppercase tracking-[0.28em] text-white/55">Field Atlas</div>
-              </div>
-              <CardTitle className="text-2xl font-semibold tracking-[0.02em] text-white">宝可梦关系图鉴</CardTitle>
-              <CardDescription className="text-white/60">
-                当前可视化只展示默认宝可梦节点，以及它们与属性、进化链的关系。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2">
-              {metadataCards.map(card => (
-                <div key={card.label} className="border border-white/10 bg-white/5 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-white/45">{card.label}</div>
-                  <div className={cn('mt-2 text-2xl font-semibold', card.accent)}>{card.value}</div>
+          
+          <Card className="border border-white/10 bg-black/40 backdrop-blur-xl shadow-xl">
+            <CardHeader className="pb-2">
+              <div className="space-y-1">
+                <h1 className="text-2xl font-bold tracking-tight text-white">宝可梦图谱</h1>
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/40">
+                  <span className="h-px w-3 bg-white/20" />
+                  Relation Atlas
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border border-white/10 bg-black/40 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <MagnifyingGlass className="size-4 text-[#89b4ff]" />
-                搜索与过滤
-              </CardTitle>
-              <CardDescription className="text-white/55">按名称定位节点，或按世代缩小图谱范围。</CardDescription>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="relative">
-                <input
-                  value={query}
-                  onChange={event => setQuery(event.target.value)}
-                  placeholder="搜索宝可梦或属性"
-                  className="w-full border border-white/12 bg-white/6 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#89b4ff]"
-                />
-                {searchResults.length > 0 && (
-                  <div className="absolute inset-x-0 top-[calc(100%+8px)] z-20 border border-white/12 bg-[#0a1022]/95 p-1 shadow-2xl backdrop-blur-xl">
-                    {searchResults.map(node => (
-                      <button
-                        key={node.id}
-                        type="button"
-                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8"
-                        onClick={() => focusNode(node)}
+            <CardContent className="space-y-6">
+              {/* Search Section */}
+              <div className="space-y-3">
+                <div className="relative group">
+                  <input
+                    value={query}
+                    onChange={event => setQuery(event.target.value)}
+                    placeholder="搜索名称或属性..."
+                    className="w-full rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#89b4ff] focus:bg-white/10 transition-all"
+                  />
+                  {searchResults.length > 0 && (
+                    <div className="absolute inset-x-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-lg border border-white/12 bg-[#0a1022]/95 p-1 shadow-2xl backdrop-blur-xl">
+                      {searchResults.map(node => (
+                        <button
+                          key={node.id}
+                          type="button"
+                          className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white"
+                          onClick={() => focusNode(node)}
+                        >
+                          <span>{node.name}</span>
+                          <span className="text-[10px] uppercase tracking-[0.22em] text-white/35">
+                            {node.isType ? 'Type' : generationLabel(node.generation)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Filters Section */}
+              <div className="space-y-6 pt-2">
+                <div className="space-y-3">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">关系层级</div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={showTypeLinks ? 'default' : 'outline'}
+                      className={cn('h-8 text-xs border-white/12', showTypeLinks && 'bg-[#ffcf5a] text-black hover:bg-[#ffcf5a]/90')}
+                      onClick={() => setShowTypeLinks(value => !value)}
+                    >
+                      属性关系
+                    </Button>
+                    <Button
+                      variant={showEvolutionLinks ? 'default' : 'outline'}
+                      className={cn('h-8 text-xs border-white/12', showEvolutionLinks && 'bg-[#7df2c0] text-black hover:bg-[#7df2c0]/90')}
+                      onClick={() => setShowEvolutionLinks(value => !value)}
+                    >
+                      进化关系
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">世代筛选</div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={generationFilter === 'all' ? 'default' : 'outline'}
+                      className={cn('h-7 text-[10px] border-white/12', generationFilter === 'all' && 'bg-white text-black hover:bg-white/90')}
+                      onClick={() => setGenerationFilter('all')}
+                    >
+                      全部
+                    </Button>
+                    {generations.map(gen => (
+                      <Button
+                        key={gen}
+                        size="sm"
+                        variant={generationFilter === gen ? 'default' : 'outline'}
+                        className={cn('h-7 text-[10px] border-white/12', generationFilter === gen && 'bg-[#89b4ff] text-black hover:bg-[#89b4ff]/90')}
+                        onClick={() => setGenerationFilter(gen)}
                       >
-                        <span>{node.name}</span>
-                        <span className="text-[10px] uppercase tracking-[0.22em] text-white/35">
-                          {node.isType ? 'Type' : generationLabel(node.generation)}
-                        </span>
-                      </button>
+                        Gen {gen}
+                      </Button>
                     ))}
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-white/45">关系层级</div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={showTypeLinks ? 'default' : 'outline'}
-                    className={cn('border-white/12', showTypeLinks && 'bg-[#ffcf5a] text-black hover:bg-[#ffcf5a]/90')}
-                    onClick={() => setShowTypeLinks(value => !value)}
-                  >
-                    属性关系
-                  </Button>
-                  <Button
-                    variant={showEvolutionLinks ? 'default' : 'outline'}
-                    className={cn('border-white/12', showEvolutionLinks && 'bg-[#7df2c0] text-black hover:bg-[#7df2c0]/90')}
-                    onClick={() => setShowEvolutionLinks(value => !value)}
-                  >
-                    进化关系
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-white/45">世代筛选</div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant={generationFilter === 'all' ? 'default' : 'outline'}
-                    className={cn('border-white/12', generationFilter === 'all' && 'bg-white text-black hover:bg-white/90')}
-                    onClick={() => setGenerationFilter('all')}
-                  >
-                    全部
-                  </Button>
-                  {generations.map(gen => (
-                    <Button
-                      key={gen}
-                      size="sm"
-                      variant={generationFilter === gen ? 'default' : 'outline'}
-                      className={cn('border-white/12', generationFilter === gen && 'bg-[#89b4ff] text-black hover:bg-[#89b4ff]/90')}
-                      onClick={() => setGenerationFilter(gen)}
-                    >
-                      Gen
-                      {' '}
-                      {gen}
-                    </Button>
-                  ))}
                 </div>
               </div>
             </CardContent>

@@ -10,7 +10,8 @@
     "lint:fix": "eslint --fix",
     "data:fetch": "tsx scripts/fetch-pokemon.ts",
     "data:graph": "tsx scripts/generate-graph.ts",
-    "data:build": "pnpm data:fetch && pnpm data:graph"
+    "data:build": "pnpm data:fetch && pnpm data:graph",
+    "data:csv": "tsx scripts/build-from-csv.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -35,6 +36,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "csv-parse": "^6.2.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",

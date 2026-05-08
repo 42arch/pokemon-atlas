@@ -26,6 +26,8 @@ export const TYPE_COLORS: Record<string, string> = {
   未知: '#7a8195',
 }
 
+const TEXT_VISIBILITY_THRESHOLD = 0.4;
+
 function getSpriteUrl(sprite: string) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${sprite}.png`
 }
@@ -255,21 +257,26 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
              let color = 0x60a5fa // blue
              let alpha = 0.15
              let width = 1
-             
-             if (link.type === 'evolution') {
-                 color = 0x10b981 // emerald
-                 alpha = 0.4
-             }
+                          if (link.type === 'evolution') {
+                  color = 0x10b981 // emerald
+                  alpha = 0.4
+              } else if (link.type === 'form-link') {
+                  color = 0xf59e0b // amber/orange
+                  alpha = 0.35
+                  width = 1.2
+              }
 
              if (localSelectedNodeId) {
                if (highlightedLinks.has(link)) {
                  alpha = Math.min(1.0, alpha * 2.5)
                  width = 2
-                 if (link.type === 'evolution') {
-                   color = 0x34d399 // lighter emerald
-                 } else {
-                   color = 0x93c5fd // lighter blue
-                 }
+                  if (link.type === 'evolution') {
+                    color = 0x34d399 // lighter emerald
+                  } else if (link.type === 'form-link') {
+                    color = 0xfbcd5d // lighter amber
+                  } else {
+                    color = 0x93c5fd // lighter blue
+                  }
                } else {
                  alpha *= 0.15
                }
@@ -311,7 +318,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
               const sourceId = (link.source as GraphNode).id || (link.source as string)
               const targetId = (link.target as GraphNode).id || (link.target as string)
               
-              if (link.type === 'evolution' && (sourceId === currId || targetId === currId)) {
+              if ((link.type === 'evolution' || link.type === 'form-link') && (sourceId === currId || targetId === currId)) {
                 highlightedLinks.add(link)
                 const nextId = sourceId === currId ? targetId : sourceId
                 if (!visitedNodes.has(nextId)) {
@@ -461,7 +468,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         graphContainer.x = pointerX - localX * newScale
         graphContainer.y = pointerY - localY * newScale
 
-        const textVisible = newScale >= 0.5 && newScale < 2.5
+        const textVisible = newScale >= TEXT_VISIBILITY_THRESHOLD
         for (const text of textNodes) {
           text.visible = textVisible
         }
@@ -476,6 +483,11 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
             graphContainer.scale.set(targetScale);
             graphContainer.x = app.screen.width / 2;
             graphContainer.y = app.screen.height / 2;
+            
+            const textVisible = targetScale >= TEXT_VISIBILITY_THRESHOLD;
+            for (const text of textNodes) {
+              text.visible = textVisible;
+            }
         }
       }, 500)
     }
