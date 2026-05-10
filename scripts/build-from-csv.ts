@@ -169,7 +169,7 @@ function main() {
     // If it's a special form, try to get the form name
     if (p.is_default !== '1') {
       const formId = pokemonToFormId.get(pId)
-      const sRaw = speciesRaw.find((s: any) => s.id === spId)
+      const sRaw = speciesRaw.find((s: any) => s.id === spId) as any
       const speciesIdentifier = sRaw?.identifier || ''
 
       if (formId) {
