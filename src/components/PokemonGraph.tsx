@@ -1,33 +1,13 @@
 'use client'
 
-import { GitBranch, Lightning, MagnifyingGlass, ShareNetwork, Sparkle } from '@phosphor-icons/react'
+import { GitBranch, Lightning, MagnifyingGlass, ShareNetwork, Sparkle, Target } from '@phosphor-icons/react'
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import PixiGraph, { GraphLink, GraphNode } from './PixiGraph'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
-const TYPE_COLORS: Record<string, string> = {
-  一般: '#d8d2bc',
-  格斗: '#ff8f47',
-  飞行: '#80c6ff',
-  毒: '#b55cff',
-  地面: '#bc8d49',
-  岩石: '#d1ba70',
-  虫: '#98cc4a',
-  幽灵: '#8874ff',
-  钢: '#88c8d4',
-  火: '#ff5b3d',
-  水: '#49a6ff',
-  草: '#4fd36d',
-  电: '#ffd447',
-  超能力: '#ff6390',
-  冰: '#6ce4ff',
-  龙: '#6a7bff',
-  恶: '#6e5f57',
-  妖精: '#ff9fca',
-  未知: '#7a8195',
-}
+import { TYPE_COLORS } from '@/lib/constants'
 
 const TYPE_LINE_COLOR = 'rgba(31, 38, 54, 0.6)'
 const EVOLUTION_LINE_COLOR = '#7df2c0'
@@ -205,7 +185,7 @@ export default function PokemonGraph() {
       })
 
       // 1. Expand matched nodes through Evolution/Form links
-      const visitedSearchNodes = new Set<string>(matchedNodeIds)
+      const matchedAndFamily = new Set<string>(matchedNodeIds)
       const queue = Array.from(matchedNodeIds)
       
       let head = 0
@@ -216,19 +196,21 @@ export default function PokemonGraph() {
           const targetId = getEndpointId(link.target)
           if ((link.type === 'evolution' || link.type === 'form-link') && (sourceId === currId || targetId === currId)) {
             const nextId = sourceId === currId ? targetId : sourceId
-            if (!visitedSearchNodes.has(nextId)) {
-              visitedSearchNodes.add(nextId)
+            if (!matchedAndFamily.has(nextId)) {
+              matchedAndFamily.add(nextId)
               queue.push(nextId)
             }
           }
         }
       }
 
-      // 2. Handle Type links differently based on query
-      // If a type node was matched, we want to show its pokemon.
-      // But we DON'T want to show other type nodes unless they also match the query.
-      const nodesWithTypes = Array.from(visitedSearchNodes)
-      for (const currId of nodesWithTypes) {
+      // 2. Expand to related types/pokemon
+      // Rule: 
+      // - If a Pokemon is matched (or part of a matched family), show its types.
+      // - If a Type is matched, show its Pokemon.
+      // - Don't show "types of types" (i.e., don't show secondary types of pokemon that were only found via a type search).
+      const visitedSearchNodes = new Set<string>(matchedAndFamily)
+      for (const currId of matchedAndFamily) {
         const currNode = baseNodeMap.get(currId)
         for (const link of links) {
           const sourceId = getEndpointId(link.source)
@@ -236,19 +218,7 @@ export default function PokemonGraph() {
           
           if (link.type === 'type-link' && (sourceId === currId || targetId === currId)) {
             const otherId = sourceId === currId ? targetId : sourceId
-            const otherNode = baseNodeMap.get(otherId)
-            
-            if (otherNode?.isType) {
-              // If we found a type node, only add it if it matches the query
-              if (matchedNodeIds.has(otherId)) {
-                visitedSearchNodes.add(otherId)
-              }
-            } else {
-              // If we found a pokemon node from a matched type node
-              if (currNode?.isType && matchedNodeIds.has(currId)) {
-                visitedSearchNodes.add(otherId)
-              }
-            }
+            visitedSearchNodes.add(otherId)
           }
         }
       }
@@ -299,6 +269,12 @@ export default function PokemonGraph() {
 
   const visibleNodeMap = useMemo(() => {
     return new Map(filteredGraph.nodes.map(node => [node.id, node]))
+  }, [filteredGraph.nodes])
+
+  const stats = useMemo(() => {
+    const pokemonCount = filteredGraph.nodes.filter(n => !n.isType).length
+    const typeCount = filteredGraph.nodes.filter(n => n.isType).length
+    return { pokemonCount, typeCount }
   }, [filteredGraph.nodes])
 
 
@@ -502,6 +478,17 @@ export default function PokemonGraph() {
                     ))}
                   </div>
                 </div>
+
+                <div className="flex gap-2 pt-2 border-t border-white/5">
+                  <div className="flex-1">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前宝可梦</div>
+                    <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.pokemonCount}</div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前属性</div>
+                    <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.typeCount}</div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -521,6 +508,10 @@ export default function PokemonGraph() {
                 <span>默认宝可梦节点之间的进化投影</span>
               </div>
               <div className="flex items-center gap-3">
+                <span className="inline-block h-px w-10 bg-[#f59e0b]" />
+                <span>形态之间的转换关系</span>
+              </div>
+              <div className="flex items-center gap-3">
                 <span className="inline-flex size-3 rounded-full bg-white ring-2 ring-white/20" />
                 <span>普通宝可梦节点</span>
               </div>
@@ -538,12 +529,25 @@ export default function PokemonGraph() {
           <section className="pointer-events-none absolute bottom-4 right-4 top-4 z-10 flex w-80 flex-col gap-4 overflow-y-auto hidden-scrollbar">
             <div className="pointer-events-auto flex flex-col gap-4">
           <Card className="border border-white/10 bg-black/40 backdrop-blur-xl">
-            <CardHeader>
+            <CardHeader className="relative pb-2">
               <CardTitle className="flex items-center gap-2 text-white">
+                {infoNode && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 -ml-2"
+                    title="仅显示此节点及其关联"
+                    onClick={() => {
+                      setQuery(infoNode.name)
+                      setConfirmedQuery(infoNode.name)
+                    }}
+                  >
+                    <Target className="size-4" />
+                  </Button>
+                )}
                 <Sparkle className="size-4 text-[#ff91b5]" weight="fill" />
-                当前焦点
+                {infoNode ? (infoNode.isType ? 'Type Node' : 'Pokemon Node') : 'Relation Link'}
               </CardTitle>
-              <CardDescription className="text-white/55">节点与连线的详细信息会在这里展开。</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
 
@@ -559,9 +563,6 @@ export default function PokemonGraph() {
                       />
                     )}
                     <div className="space-y-2">
-                      <div className="text-[10px] uppercase tracking-[0.24em] text-white/38">
-                        {infoNode.isType ? 'Type Node' : 'Pokemon Node'}
-                      </div>
                       <div className="text-2xl font-semibold text-white">{infoNode.name}</div>
                       {!infoNode.isType && (
                         <div className="text-sm text-white/55">
@@ -693,22 +694,6 @@ export default function PokemonGraph() {
             </CardContent>
           </Card>
 
-          <Card className="border border-white/10 bg-black/40 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <GitBranch className="size-4 text-[#7df2c0]" />
-                数据说明
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-white/63">
-              <p>当前图谱只使用默认宝可梦节点，因此进化边不会连接 Mega、地区形态或其他 form。</p>
-              <p>属性来自默认 `pokemon` 实体，进化条件来自 `evolution-chain`，这两层通过默认节点投影到同一张图上。</p>
-              <p>
-                数据生成时间：
-                {payload ? new Date(payload.metadata.generatedAt).toLocaleString() : '加载中'}
-              </p>
-            </CardContent>
-          </Card>
             </div>
           </section>
         )}
