@@ -14,7 +14,7 @@ const EVOLUTION_LINE_COLOR = '#7df2c0'
 const TYPE_ICON_SIZE = 50
 const TYPES_ARRAY = ['一般', '格斗', '飞行', '毒', '地面', '岩石', '虫', '幽灵', '钢', '火', '水', '草', '电', '超能力', '冰', '龙', '恶', '妖精']
 
-type LinkType = 'type-link' | 'evolution'
+type LinkType = 'type-link' | 'evolution' | 'form-link' | 'ability-link'
 
 
 
@@ -32,12 +32,25 @@ interface GraphPayload {
   links: GraphLink[]
 }
 
+interface NodeDetails {
+  name: string
+  type: 'pokemon' | 'ability' | 'type'
+  description?: string
+  types?: string[]
+  generation?: number
+  pokedexNumber?: string
+  color?: string
+  trigger?: string
+  label?: string
+  isHidden?: boolean
+}
+
 function getEndpointId(endpoint: string | GraphNode) {
-  return typeof endpoint === 'string' ? endpoint : endpoint.id
+  return typeof endpoint === 'string' ? endpoint : endpoint.i
 }
 
 function getLinkId(link: GraphLink) {
-  return link.id || `${getEndpointId(link.source)}-${getEndpointId(link.target)}-${link.type}`
+  return link.i || `${getEndpointId(link.s)}-${getEndpointId(link.t)}-${link.ty}`
 }
 
 function getSpriteUrl(sprite: string) {
@@ -78,6 +91,7 @@ function generationLabel(generation?: number) {
 
 export default function PokemonGraph() {
   const [payload, setPayload] = useState<GraphPayload | null>(null)
+  const [details, setDetails] = useState<Record<string, NodeDetails> | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
@@ -85,6 +99,7 @@ export default function PokemonGraph() {
   const [confirmedQuery, setConfirmedQuery] = useState('')
   const [showTypeLinks, setShowTypeLinks] = useState(true)
   const [showEvolutionLinks, setShowEvolutionLinks] = useState(true)
+  const [showAbilityLinks, setShowAbilityLinks] = useState(false)
   const [generationFilter, setGenerationFilter] = useState<'all' | number>('all')
   const [isDropdownVisible, setIsDropdownVisible] = useState(false)
   const deferredQuery = useDeferredValue(confirmedQuery)
@@ -105,6 +120,13 @@ export default function PokemonGraph() {
       .catch((error) => {
         console.error('Failed to load graph data', error)
       })
+      
+    fetch('/node-details.json')
+      .then(res => res.json())
+      .then((data: Record<string, NodeDetails>) => {
+        setDetails(data)
+      })
+      .catch(err => console.error('Failed to load node details', err))
 
     return () => {
       active = false
@@ -114,17 +136,21 @@ export default function PokemonGraph() {
 
 
   const baseNodeMap = useMemo(() => {
-    return new Map(payload?.nodes.map(node => [node.id, node]) || [])
+    return new Map(payload?.nodes.map(node => [node.i, node]) || [])
   }, [payload])
 
   const generations = useMemo(() => {
     const values = new Set<number>()
     payload?.nodes.forEach((node) => {
-      if (!node.isType && node.generation)
-        values.add(node.generation)
+      // Use details for generation if available, but for performance we might want it in graph-data
+      // Let's assume for now we might need to keep it or just skip gen filtering if not in graph-data
+      // Actually, my script removed it from nodes. Let's check.
+      const d = details?.[node.i]
+      if (!node.it && d?.generation)
+        values.add(d.generation)
     })
     return Array.from(values).sort((a, b) => a - b)
-  }, [payload])
+  }, [payload, details])
 
   const filteredGraph = useMemo(() => {
     if (!payload) {
@@ -133,53 +159,76 @@ export default function PokemonGraph() {
 
     const normalizedLinks = payload.links.map(link => ({
       ...link,
-      source: getEndpointId(link.source),
-      target: getEndpointId(link.target),
+      source: getEndpointId(link.s),
+      target: getEndpointId(link.t),
     }))
 
     const visiblePokemon = new Set(
       payload.nodes
-        .filter(node => !node.isType)
-        .filter(node => generationFilter === 'all' || node.generation === generationFilter)
-        .map(node => node.id),
+        .filter(node => !node.it && !node.ia)
+        .filter(node => {
+           if (generationFilter === 'all') return true
+           const d = details?.[node.i]
+           return d?.generation === generationFilter
+        })
+        .map(node => node.i),
+    )
+
+    // Abilities should be considered visible if the toggle is on, or we'll filter them later based on links
+    const visibleAbilities = new Set(
+      payload.nodes
+        .filter(node => node.ia)
+        .map(node => node.i)
     )
 
     const links = normalizedLinks.filter((link) => {
-      if (link.type === 'type-link' && !showTypeLinks)
+      if (link.ty === 'type-link' && !showTypeLinks)
         return false
-      if (link.type === 'evolution' && !showEvolutionLinks)
+      if (link.ty === 'evolution' && !showEvolutionLinks)
+        return false
+      if (link.ty === 'ability-link' && !showAbilityLinks)
         return false
 
-      const sourceId = getEndpointId(link.source)
-      const targetId = getEndpointId(link.target)
+      const sourceId = getEndpointId(link.s)
+      const targetId = getEndpointId(link.t)
       const sourceNode = baseNodeMap.get(sourceId)
       const targetNode = baseNodeMap.get(targetId)
 
       if (!sourceNode || !targetNode)
         return false
 
-      if (link.type === 'type-link') {
-        return sourceNode.isType ? visiblePokemon.has(targetId) : visiblePokemon.has(sourceId)
+      if (link.ty === 'type-link') {
+        return sourceNode.it ? visiblePokemon.has(targetId) : visiblePokemon.has(sourceId)
+      }
+
+      if (link.ty === 'ability-link') {
+        // Show ability link if ability toggle is on AND the pokemon is visible
+        const pokemonId = sourceNode.ia ? targetId : sourceId
+        return showAbilityLinks && visiblePokemon.has(pokemonId)
       }
 
       return visiblePokemon.has(sourceId) && visiblePokemon.has(targetId)
     })
 
     const visibleNodeIds = new Set<string>(visiblePokemon)
+    if (showAbilityLinks) {
+      visibleAbilities.forEach(id => visibleNodeIds.add(id))
+    }
+    
     links.forEach((link) => {
-      visibleNodeIds.add(getEndpointId(link.source))
-      visibleNodeIds.add(getEndpointId(link.target))
+      visibleNodeIds.add(getEndpointId(link.s))
+      visibleNodeIds.add(getEndpointId(link.t))
     })
 
     const query = deferredQuery.trim().toLowerCase()
     if (query) {
       const matchedNodeIds = new Set<string>()
       payload.nodes.forEach(node => {
-        if (visibleNodeIds.has(node.id)) {
-          const lowerName = node.name.toLowerCase()
-          const lowerId = node.id.toLowerCase()
+        if (visibleNodeIds.has(node.i)) {
+          const lowerName = node.n.toLowerCase()
+          const lowerId = node.i.toLowerCase()
           if (lowerName === query || lowerId === query) {
-            matchedNodeIds.add(node.id)
+            matchedNodeIds.add(node.i)
           }
         }
       })
@@ -192,9 +241,9 @@ export default function PokemonGraph() {
       while (head < queue.length) {
         const currId = queue[head++]
         for (const link of links) {
-          const sourceId = getEndpointId(link.source)
-          const targetId = getEndpointId(link.target)
-          if ((link.type === 'evolution' || link.type === 'form-link') && (sourceId === currId || targetId === currId)) {
+          const sourceId = getEndpointId(link.s)
+          const targetId = getEndpointId(link.t)
+          if ((link.ty === 'evolution' || link.ty === 'form-link') && (sourceId === currId || targetId === currId)) {
             const nextId = sourceId === currId ? targetId : sourceId
             if (!matchedAndFamily.has(nextId)) {
               matchedAndFamily.add(nextId)
@@ -213,10 +262,10 @@ export default function PokemonGraph() {
       for (const currId of matchedAndFamily) {
         const currNode = baseNodeMap.get(currId)
         for (const link of links) {
-          const sourceId = getEndpointId(link.source)
-          const targetId = getEndpointId(link.target)
+          const sourceId = getEndpointId(link.s)
+          const targetId = getEndpointId(link.t)
           
-          if (link.type === 'type-link' && (sourceId === currId || targetId === currId)) {
+          if ((link.ty === 'type-link' || link.ty === 'ability-link') && (sourceId === currId || targetId === currId)) {
             const otherId = sourceId === currId ? targetId : sourceId
             visitedSearchNodes.add(otherId)
           }
@@ -229,35 +278,40 @@ export default function PokemonGraph() {
           newVisibleNodeIds.add(id)
         }
       }
+      
+      // If we found a pokemon via search, make sure its ability links are also included in the final set
+      // even if showAbilityLinks is false (optional, but good for focus)
+      // Actually, let's just make sure all links between final visible nodes are included.
+      
       visibleNodeIds.clear()
       newVisibleNodeIds.forEach(id => visibleNodeIds.add(id))
     }
 
     const finalNodes = payload.nodes
-      .filter(node => visibleNodeIds.has(node.id))
+      .filter(node => visibleNodeIds.has(node.i))
       .map(node => ({ ...node }))
 
     const finalLinks = links.filter(link => {
-       const sourceId = getEndpointId(link.source)
-       const targetId = getEndpointId(link.target)
+       const sourceId = getEndpointId(link.s)
+       const targetId = getEndpointId(link.t)
        return visibleNodeIds.has(sourceId) && visibleNodeIds.has(targetId)
     })
 
     return { nodes: finalNodes, links: finalLinks }
-  }, [payload, generationFilter, showEvolutionLinks, showTypeLinks, baseNodeMap, deferredQuery])
+  }, [payload, details, generationFilter, showEvolutionLinks, showTypeLinks, showAbilityLinks, baseNodeMap, deferredQuery])
 
   const adjacency = useMemo(() => {
     const relationMap = new Map<string, Set<string>>()
     const linkMap = new Map<string, GraphLink[]>()
 
     filteredGraph.nodes.forEach((node) => {
-      relationMap.set(node.id, new Set())
-      linkMap.set(node.id, [])
+      relationMap.set(node.i, new Set())
+      linkMap.set(node.i, [])
     })
 
     filteredGraph.links.forEach((link) => {
-      const sourceId = getEndpointId(link.source)
-      const targetId = getEndpointId(link.target)
+      const sourceId = getEndpointId(link.s)
+      const targetId = getEndpointId(link.t)
       relationMap.get(sourceId)?.add(targetId)
       relationMap.get(targetId)?.add(sourceId)
       linkMap.get(sourceId)?.push(link)
@@ -268,13 +322,14 @@ export default function PokemonGraph() {
   }, [filteredGraph])
 
   const visibleNodeMap = useMemo(() => {
-    return new Map(filteredGraph.nodes.map(node => [node.id, node]))
+    return new Map(filteredGraph.nodes.map(node => [node.i, node]))
   }, [filteredGraph.nodes])
 
   const stats = useMemo(() => {
-    const pokemonCount = filteredGraph.nodes.filter(n => !n.isType).length
-    const typeCount = filteredGraph.nodes.filter(n => n.isType).length
-    return { pokemonCount, typeCount }
+    const pokemonCount = filteredGraph.nodes.filter(n => !n.it && !n.ia).length
+    const typeCount = filteredGraph.nodes.filter(n => n.it).length
+    const abilityCount = filteredGraph.nodes.filter(n => n.ia).length
+    return { pokemonCount, typeCount, abilityCount }
   }, [filteredGraph.nodes])
 
 
@@ -293,14 +348,14 @@ export default function PokemonGraph() {
       return []
 
     return filteredGraph.nodes
-      .filter(node => node.name.toLowerCase().includes(keyword) || node.id.toLowerCase().includes(keyword))
-      .sort((a, b) => Number(Boolean(a.isType)) - Number(Boolean(b.isType)))
+      .filter(node => node.n.toLowerCase().includes(keyword) || node.i.toLowerCase().includes(keyword))
+      .sort((a, b) => Number(Boolean(a.it || a.ia)) - Number(Boolean(b.it || b.ia)))
       .slice(0, 8)
   }, [query, filteredGraph.nodes])
 
   const highlightedNodeIds = useMemo(() => {
     const ids = new Set<string>()
-    searchResults.forEach(node => ids.add(node.id))
+    searchResults.forEach(node => ids.add(node.i))
     if (selectedNodeId) {
       ids.add(selectedNodeId)
       adjacency.relationMap.get(selectedNodeId)?.forEach(id => ids.add(id))
@@ -322,7 +377,7 @@ export default function PokemonGraph() {
   }, [adjacency.linkMap, selectedNodeId])
 
   function focusNode(node: GraphNode) {
-    setSelectedNodeId(node.id)
+    setSelectedNodeId(node.i)
     setSelectedLinkId(null)
   }
 
@@ -411,19 +466,19 @@ export default function PokemonGraph() {
                     <div className="absolute inset-x-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-lg border border-white/12 bg-[#0a1022]/95 p-1 shadow-2xl backdrop-blur-xl">
                       {searchResults.map(node => (
                         <button
-                          key={node.id}
+                          key={node.i}
                           type="button"
                           className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white"
                           onClick={() => {
-                            setQuery(node.name)
-                            setConfirmedQuery(node.name)
+                            setQuery(node.n)
+                            setConfirmedQuery(node.n)
                             focusNode(node)
                             setIsDropdownVisible(false)
                           }}
                         >
-                          <span>{node.name}</span>
+                          <span>{node.n}</span>
                           <span className="text-[10px] uppercase tracking-[0.22em] text-white/35">
-                            {node.isType ? 'Type' : generationLabel(node.generation)}
+                            {node.it ? 'Type' : (node.ia ? 'Ability' : (details?.[node.i] ? generationLabel(details[node.i].generation) : ''))}
                           </span>
                         </button>
                       ))}
@@ -450,6 +505,13 @@ export default function PokemonGraph() {
                       onClick={() => setShowEvolutionLinks(value => !value)}
                     >
                       进化关系
+                    </Button>
+                    <Button
+                      variant={showAbilityLinks ? 'default' : 'outline'}
+                      className={cn('h-8 text-xs border-white/12', showAbilityLinks && 'bg-[#a855f7] text-white hover:bg-[#a855f7]/90')}
+                      onClick={() => setShowAbilityLinks(value => !value)}
+                    >
+                      特性关系
                     </Button>
                   </div>
                 </div>
@@ -488,6 +550,10 @@ export default function PokemonGraph() {
                     <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前属性</div>
                     <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.typeCount}</div>
                   </div>
+                  <div className="flex-1">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前特性</div>
+                    <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.abilityCount}</div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -519,6 +585,10 @@ export default function PokemonGraph() {
                 <span className="inline-flex size-3 rotate-45 bg-[#89b4ff]" />
                 <span>属性节点</span>
               </div>
+              <div className="flex items-center gap-3">
+                <span className="inline-flex size-3 [clip-path:polygon(50%_0%,_61%_35%,_98%_35%,_68%_57%,_79%_91%,_50%_70%,_21%_91%,_32%_57%,_2%_35%,_39%_35%)] bg-[#a855f7]" />
+                <span>特性节点</span>
+              </div>
             </CardContent>
           </Card>
           </div>
@@ -538,15 +608,15 @@ export default function PokemonGraph() {
                     className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 -ml-2"
                     title="仅显示此节点及其关联"
                     onClick={() => {
-                      setQuery(infoNode.name)
-                      setConfirmedQuery(infoNode.name)
+                      setQuery(infoNode.n)
+                      setConfirmedQuery(infoNode.n)
                     }}
                   >
                     <Target className="size-4" />
                   </Button>
                 )}
                 <Sparkle className="size-4 text-[#ff91b5]" weight="fill" />
-                {infoNode ? (infoNode.isType ? 'Type Node' : 'Pokemon Node') : 'Relation Link'}
+                {infoNode ? (infoNode.it ? 'Type Node' : (infoNode.ia ? 'Ability Node' : 'Pokemon Node')) : 'Relation Link'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -555,31 +625,36 @@ export default function PokemonGraph() {
               {infoNode && (
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
-                    {!infoNode.isType && infoNode.sprite && (
+                    {!infoNode.it && !infoNode.ia && infoNode.s && (
                       <img
-                        src={getSpriteUrl(infoNode.sprite)}
-                        alt={infoNode.name}
+                        src={getSpriteUrl(infoNode.s)}
+                        alt={infoNode.n}
                         className="size-18 border border-white/12 bg-black/30 object-contain p-2"
                       />
                     )}
                     <div className="space-y-2">
-                      <div className="text-2xl font-semibold text-white">{infoNode.name}</div>
-                      {!infoNode.isType && (
+                      <div className="text-2xl font-semibold text-white">{infoNode.n}</div>
+                      {details?.[infoNode.i] && (
                         <div className="text-sm text-white/55">
-                          #
-                          {infoNode.pokedexNumber}
-                          {' '}
-                          ·
-                          {' '}
-                          {generationLabel(infoNode.generation)}
+                          {details[infoNode.i].pokedexNumber && `#${details[infoNode.i].pokedexNumber}`}
+                          {details[infoNode.i].generation && ` · ${generationLabel(details[infoNode.i].generation)}`}
                         </div>
+                      )}
+                      {infoNode.ia && (
+                        <div className="text-sm text-[#a855f7]">特性节点</div>
                       )}
                     </div>
                   </div>
 
-                  {!infoNode.isType && infoNode.types && (
+                  {infoNode.ia && details?.[infoNode.i]?.description && (
+                    <div className="border-l-2 border-[#a855f7]/40 bg-[#a855f7]/5 p-3 text-xs leading-relaxed text-white/70 italic">
+                      {details[infoNode.i].description}
+                    </div>
+                  )}
+
+                  {details?.[infoNode.i]?.types && (
                     <div className="flex flex-wrap gap-2">
-                      {infoNode.types.map(type => (
+                      {details[infoNode.i].types.map(type => (
                         <span
                           key={type}
                           className="border px-2 py-1 text-xs"
@@ -603,7 +678,7 @@ export default function PokemonGraph() {
                     <div className="border border-white/10 bg-white/4 p-3">
                       <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">邻接节点</div>
                       <div className="mt-2 text-xl font-semibold text-[#89b4ff]">
-                        {adjacency.relationMap.get(infoNode.id)?.size || 0}
+                        {adjacency.relationMap.get(infoNode.i)?.size || 0}
                       </div>
                     </div>
                   </div>
@@ -615,8 +690,8 @@ export default function PokemonGraph() {
                     </div>
                     <div className="max-h-[340px] space-y-2 overflow-auto pr-1">
                       {selectedNodeLinks.slice(0, 16).map((link) => {
-                        const sourceId = getEndpointId(link.source)
-                        const targetId = getEndpointId(link.target)
+                        const sourceId = getEndpointId(link.s)
+                        const targetId = getEndpointId(link.t)
                         const sourceNode = visibleNodeMap.get(sourceId)
                         const targetNode = visibleNodeMap.get(targetId)
 
@@ -635,18 +710,18 @@ export default function PokemonGraph() {
                           >
                             <div className="flex items-center justify-between gap-3">
                               <span className="text-sm text-white">
-                                {sourceNode.name}
+                                {sourceNode.n}
                                 {' '}
                                 →
                                 {' '}
-                                {targetNode.name}
+                                {targetNode.n}
                               </span>
                               <span className="text-[10px] uppercase tracking-[0.2em] text-white/35">
-                                {link.type === 'evolution' ? 'evolution' : 'type'}
+                                {link.ty === 'evolution' ? 'evolution' : (link.ty === 'ability-link' ? 'ability' : 'type')}
                               </span>
                             </div>
-                            {link.label && (
-                              <div className="mt-2 text-xs text-white/52">{link.label}</div>
+                            {details?.[getLinkId(link)]?.label && (
+                              <div className="mt-2 text-xs text-white/52">{details[getLinkId(link)].label}</div>
                             )}
                           </button>
                         )
@@ -661,11 +736,11 @@ export default function PokemonGraph() {
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.24em] text-white/35">Relation Edge</div>
                     <div className="mt-2 text-2xl font-semibold text-white">
-                      {visibleNodeMap.get(getEndpointId(infoLink.source))?.name}
+                      {visibleNodeMap.get(getEndpointId(infoLink.s))?.n}
                       {' '}
                       →
                       {' '}
-                      {visibleNodeMap.get(getEndpointId(infoLink.target))?.name}
+                      {visibleNodeMap.get(getEndpointId(infoLink.t))?.n}
                     </div>
                   </div>
 
@@ -673,20 +748,26 @@ export default function PokemonGraph() {
                     <div className="border border-white/10 bg-white/4 p-3">
                       <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">关系类型</div>
                       <div className="mt-2 text-lg font-semibold text-[#7df2c0]">
-                        {infoLink.type === 'evolution' ? '进化关系' : '属性归属'}
+                        {infoLink.ty === 'evolution' ? '进化关系' : (infoLink.ty === 'ability-link' ? '特性关联' : '属性归属')}
                       </div>
                     </div>
-                    {infoLink.type === 'evolution' && (
+                    {infoLink.ty === 'evolution' && (
                       <>
                         <div className="border border-white/10 bg-white/4 p-3">
                           <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">触发方式</div>
-                          <div className="mt-2 text-lg font-semibold text-white">{formatTrigger(infoLink.trigger)}</div>
+                          <div className="mt-2 text-lg font-semibold text-white">{details?.[getLinkId(infoLink)]?.trigger || '未知'}</div>
                         </div>
                         <div className="border border-white/10 bg-white/4 p-3">
                           <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">条件摘要</div>
-                          <div className="mt-2 text-sm text-white/72">{infoLink.label || '无额外说明'}</div>
+                          <div className="mt-2 text-sm text-white/72">{details?.[getLinkId(infoLink)]?.label || '无额外说明'}</div>
                         </div>
                       </>
+                    )}
+                    {infoLink.ty === 'ability-link' && (
+                       <div className="border border-white/10 bg-white/4 p-3">
+                         <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">特性类型</div>
+                         <div className="mt-2 text-lg font-semibold text-white">{details?.[getLinkId(infoLink)]?.isHidden ? '隐藏特性 (梦特)' : '普通特性'}</div>
+                       </div>
                     )}
                   </div>
                 </div>

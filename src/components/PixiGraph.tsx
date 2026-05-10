@@ -14,28 +14,24 @@ function getSpriteUrl(sprite: string) {
 }
 
 export interface GraphNode extends d3.SimulationNodeDatum {
-  id: string
-  name: string
-  val: number
-  group: string
-  isType?: boolean
-  sprite?: string
-  types?: string[]
-  generation?: number
-  pokedexNumber?: string
+  i: string // id
+  n: string // name
+  v: number // val
+  g: string // group
+  it?: boolean // isType
+  ia?: boolean // isAbility
+  s?: string // sprite
+  c?: string // color
+  // Internal properties
   radius?: number
   color?: string
 }
 
 export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
-  id?: string
-  source: string | GraphNode
-  target: string | GraphNode
-  value: number
-  type: string
-  trigger?: string | null
-  minLevel?: number | null
-  label?: string
+  i?: string // id
+  s: string | GraphNode // source
+  t: string | GraphNode // target
+  ty: string // type
 }
 
 interface PixiGraphProps {
@@ -272,27 +268,35 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
 
     const nodes = rawNodes.map(n => ({
       ...n,
-      radius: n.isType ? 18 : Math.max(12, n.val * 1.5),
-      color: n.isType 
-        ? (TYPE_COLORS[n.name] || '#89b4ff') 
-        : (POKEMON_COLORS[n.color || ''] || TYPE_COLORS[n.types?.[0] || n.group] || '#475569')
+      radius: n.it ? 18 : (n.ia ? 15 : Math.max(12, n.v * 1.5)),
+      color: n.it 
+        ? (TYPE_COLORS[n.n] || '#89b4ff') 
+        : (n.ia ? '#a855f7' : (POKEMON_COLORS[n.c || ''] || TYPE_COLORS[n.g] || '#475569'))
     }))
-    const nodeMap = new Map(nodes.map(n => [n.id, n]))
+    const nodeMap = new Map(nodes.map(n => [n.i, n]))
     const validLinks = rawLinks
       .filter(l => {
-         const sId = typeof l.source === 'string' ? l.source : (l.source as GraphNode).id
-         const tId = typeof l.target === 'string' ? l.target : (l.target as GraphNode).id
+         const sId = typeof l.s === 'string' ? l.s : (l.s as GraphNode).i
+         const tId = typeof l.t === 'string' ? l.t : (l.t as GraphNode).i
          return nodeMap.has(sId) && nodeMap.has(tId)
       })
-      .map(l => ({ ...l })) as GraphLink[]
+      .map(l => ({ 
+        ...l, 
+        source: typeof l.s === 'string' ? l.s : (l.s as GraphNode).i,
+        target: typeof l.t === 'string' ? l.t : (l.t as GraphNode).i
+      })) as any[]
 
     // Simulation
     if (simulationRef.current) simulationRef.current.stop()
     const simulation = d3.forceSimulation<GraphNode>(nodes)
-      .force('link', d3.forceLink<GraphNode, GraphLink>(validLinks).id(d => d.id).distance(d => d.type === 'evolution' ? 120 : 70))
-      .force('charge', d3.forceManyBody<GraphNode>().strength(d => d.isType ? -500 : -200))
+      .force('link', d3.forceLink<GraphNode, any>(validLinks).id(d => d.i).distance(d => {
+        if (d.ty === 'evolution') return 120
+        if (d.ty === 'ability-link') return 90
+        return 70
+      }))
+      .force('charge', d3.forceManyBody<GraphNode>().strength(d => d.it ? -500 : (d.ia ? -300 : -200)))
       .force('center', d3.forceCenter(app.screen.width / 2, app.screen.height / 2))
-      .force('collide', d3.forceCollide<GraphNode>().radius(d => (d.radius || 12) + 8))
+      .force('collide', d3.forceCollide<GraphNode>().radius(d => (d.radius || 12) + 10))
     simulationRef.current = simulation
 
     // Visuals
@@ -303,30 +307,40 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
 
       const r = node.radius || 12
       const highlightGraphics = new PIXI.Graphics()
-      if (node.isType) {
+      if (node.it) {
         highlightGraphics.poly([0, -r-3, r+3, 0, 0, r+3, -r-3, 0])
+      } else if (node.ia) {
+        // Star shape for abilities
+        const innerR = (r + 3) * 0.5;
+        const points = [];
+        for (let i = 0; i < 10; i++) {
+          const angle = (i * Math.PI) / 5 - Math.PI / 2;
+          const currR = i % 2 === 0 ? r + 3 : innerR;
+          points.push(Math.cos(angle) * currR, Math.sin(angle) * currR);
+        }
+        highlightGraphics.poly(points)
       } else {
         highlightGraphics.circle(0, 0, r + 3)
       }
       highlightGraphics.stroke({ width: 3, color: 0xffe81c })
-      highlightGraphics.visible = selectedNodeIdRef.current === node.id
+      highlightGraphics.visible = selectedNodeIdRef.current === node.i
       nodeContainer.addChild(highlightGraphics)
 
       nodeContainer.on('pointerdown', (e) => {
         if ((app as any).__setDraggedNode) (app as any).__setDraggedNode(node)
         node.fx = node.x
         node.fy = node.y
-        selectedNodeIdRef.current = node.id
+        selectedNodeIdRef.current = node.i
         updateVisualsRef.current?.()
         onNodeClickRef.current(node)
         e.stopPropagation()
       })
 
       nodesContainerRef.current?.addChild(nodeContainer)
-      nodeVisualsRef.current.set(node.id, { container: nodeContainer, highlight: highlightGraphics })
+      nodeVisualsRef.current.set(node.i, { container: nodeContainer, highlight: highlightGraphics })
 
-      if (!node.isType && node.sprite) {
-        PIXI.Assets.load(getSpriteUrl(node.sprite)).then((texture) => {
+      if (!node.it && node.s) {
+        PIXI.Assets.load(getSpriteUrl(node.s)).then((texture) => {
           const sprite = new PIXI.Sprite(texture)
           sprite.anchor.set(0.5)
           const size = (node.radius || 12) * 1.8
@@ -336,9 +350,9 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
           sprite.mask = mask
           nodeContainer.addChild(sprite)
         }).catch(() => {})
-      } else if (node.isType) {
+      } else if (node.it) {
         // Load type sprite from types.webp
-        const typeIndex = TYPES_LIST.indexOf(node.name)
+        const typeIndex = TYPES_LIST.indexOf(node.n)
         if (typeIndex !== -1) {
           PIXI.Assets.load('/types.webp').then((baseTexture) => {
             const frame = new PIXI.Rectangle(0, typeIndex * 50, 50, 50)
@@ -358,8 +372,8 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       }
 
       const text = new PIXI.Text({
-        text: node.isType ? node.name + '属性' : node.name,
-        style: { fontFamily: '"JetBrains Mono", monospace', fontSize: node.isType ? 14 : 10, fill: 0x94a3b8, align: 'center' },
+        text: node.it ? node.n + '属性' : (node.ia ? node.n + '特性' : node.n),
+        style: { fontFamily: '"JetBrains Mono", monospace', fontSize: node.it ? 14 : (node.ia ? 12 : 10), fill: 0x94a3b8, align: 'center' },
         resolution: window.devicePixelRatio * 2,
       })
       text.anchor.set(0.5, 0); text.y = (node.radius || 12) + 4
@@ -368,13 +382,22 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       textNodesRef.current.push(text)
 
       const shape = new PIXI.Graphics()
-      if (node.isType) {
+      if (node.it) {
         shape.poly([0, -r, r, 0, 0, r, -r, 0])
+      } else if (node.ia) {
+        const innerR = r * 0.5;
+        const points = [];
+        for (let i = 0; i < 10; i++) {
+          const angle = (i * Math.PI) / 5 - Math.PI / 2;
+          const currR = i % 2 === 0 ? r : innerR;
+          points.push(Math.cos(angle) * currR, Math.sin(angle) * currR);
+        }
+        shape.poly(points)
       } else {
         shape.circle(0, 0, r)
       }
       shape.fill({ color: node.color })
-      if (node.isType) shape.stroke({ width: 2, color: 0xffffff })
+      if (node.it) shape.stroke({ width: 2, color: 0xffffff })
       nodeContainer.addChild(shape)
     }
 
@@ -390,13 +413,14 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
            linkGraphics.moveTo(source.x, source.y)
            linkGraphics.lineTo(target.x, target.y)
            let color = 0x60a5fa, alpha = 0.15, width = 1
-           if (link.type === 'evolution') { color = 0x10b981; alpha = 0.4 }
-           else if (link.type === 'form-link') { color = 0xf59e0b; alpha = 0.35; width = 1.2 }
-
+           if (link.ty === 'evolution') { color = 0x10b981; alpha = 0.4 }
+           else if (link.ty === 'form-link') { color = 0xf59e0b; alpha = 0.35; width = 1.2 }
+           else if (link.ty === 'ability-link') { color = 0xa855f7; alpha = 0.3; width = 1 }
+ 
            if (selectedNodeIdRef.current) {
              if (highlightedLinks.has(link)) {
                alpha = Math.min(1.0, alpha * 2.5); width = 2
-               color = link.type === 'evolution' ? 0x34d399 : (link.type === 'form-link' ? 0xfbcd5d : 0x93c5fd)
+               color = link.ty === 'evolution' ? 0x34d399 : (link.ty === 'form-link' ? 0xfbcd5d : (link.ty === 'ability-link' ? 0xc084fc : 0x93c5fd))
              } else { alpha *= 0.15 }
            }
            linkGraphics.stroke({ color, alpha, width })
@@ -415,8 +439,8 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         while (head < queue.length) {
           const currId = queue[head++]
           for (const link of validLinks) {
-            const sId = (link.source as GraphNode).id, tId = (link.target as GraphNode).id
-            if ((link.type === 'evolution' || link.type === 'form-link') && (sId === currId || tId === currId)) {
+            const sId = (link.source as GraphNode).i, tId = (link.target as GraphNode).i
+            if ((link.ty === 'evolution' || link.ty === 'form-link') && (sId === currId || tId === currId)) {
               highlightedLinks.add(link)
               const nextId = sId === currId ? tId : sId
               if (!visited.has(nextId)) { visited.add(nextId); queue.push(nextId) }
@@ -424,8 +448,8 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
           }
         }
         validLinks.forEach(link => {
-          const sId = (link.source as GraphNode).id, tId = (link.target as GraphNode).id
-          if ((sId === localId || tId === localId) && link.type === 'type-link') highlightedLinks.add(link)
+          const sId = (link.source as GraphNode).i, tId = (link.target as GraphNode).i
+          if ((sId === localId || tId === localId) && (link.ty === 'type-link' || link.ty === 'ability-link')) highlightedLinks.add(link)
         })
       }
       drawLinks()
@@ -435,7 +459,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
     simulation.on('tick', () => {
       drawLinks()
       nodes.forEach(node => {
-        const visual = nodeVisualsRef.current.get(node.id)
+        const visual = nodeVisualsRef.current.get(node.i)
         if (visual && node.x != null && node.y != null) {
           visual.container.x = node.x; visual.container.y = node.y
         }

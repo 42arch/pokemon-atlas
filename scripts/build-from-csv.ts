@@ -3,7 +3,8 @@ import path from 'node:path'
 import { parse } from 'csv-parse/sync'
 
 const RAW_DIR = path.join(process.cwd(), 'scripts/raw')
-const OUTPUT_PATH = path.join(process.cwd(), 'public/graph-data.json')
+const GRAPH_OUTPUT_PATH = path.join(process.cwd(), 'public/graph-data.json')
+const DETAILS_OUTPUT_PATH = path.join(process.cwd(), 'public/node-details.json')
 
 const COLOR_MAP: Record<number, string> = {
   1: '黑色',
@@ -20,7 +21,7 @@ const COLOR_MAP: Record<number, string> = {
 
 function readCsv(filename: string) {
   const content = fs.readFileSync(path.join(RAW_DIR, filename), 'utf8')
-  return parse(content, { columns: true, skip_empty_lines: true })
+  return parse(content, { columns: true, skip_empty_lines: true, relax_quotes: true, relax_column_count: true })
 }
 
 function getLocalized(records: any[], idField: string, id: string) {
@@ -85,6 +86,10 @@ function main() {
   const triggerProse = readCsv('evolution_trigger_prose.csv')
   const formsRaw = readCsv('pokemon_forms.csv')
   const formNamesRaw = readCsv('pokemon_form_names.csv')
+  const abilitiesRaw = readCsv('abilities.csv')
+  const abilityNamesRaw = readCsv('ability_names.csv')
+  const abilityProseRaw = readCsv('ability_prose.csv')
+  const pokemonAbilitiesRaw = readCsv('pokemon_abilities.csv')
 
   const nodes: any[] = []
   const links: any[] = []
@@ -100,11 +105,11 @@ function main() {
     typeDict.set(tId, { id: tNodeId, name: tName, slug: tSlug })
     
     nodes.push({
-      id: tNodeId,
-      name: tName,
-      val: 50,
-      group: tName,
-      isType: true,
+      i: tNodeId,
+      n: tName,
+      v: 50,
+      g: tName,
+      it: true,
     })
   })
 
@@ -145,7 +150,51 @@ function main() {
     }
   })
 
-  // 6. Pokemon & species
+  // 6. Abilities
+  const abilityDict = new Map<string, any>()
+  const usedAbilityIds = new Set<string>()
+  pokemonAbilitiesRaw.forEach((pa: any) => usedAbilityIds.add(pa.ability_id))
+
+  abilitiesRaw.forEach((a: any) => {
+    if (!usedAbilityIds.has(a.id)) return
+
+    const aId = a.id
+    const aName = getLocalized(abilityNamesRaw, 'ability_id', aId)
+    
+    // Get description
+    const proseMatches = abilityProseRaw.filter((r: any) => r.ability_id === aId)
+    const zhProse = proseMatches.find((r: any) => r.local_language_id === '12')
+    const enProse = proseMatches.find((r: any) => r.local_language_id === '9')
+    const description = zhProse?.short_effect || enProse?.short_effect || ''
+
+    const aNodeId = `ability-${aId}`
+    
+    abilityDict.set(aId, { id: aNodeId, name: aName, description })
+    
+    nodes.push({
+      i: aNodeId,
+      n: aName,
+      v: 40,
+      g: '特性',
+      ia: true,
+    })
+  })
+
+  // 7. Pokemon abilities mapping
+  const pkmAbilities = new Map<string, any[]>()
+  pokemonAbilitiesRaw.forEach((pa: any) => {
+    const pid = pa.pokemon_id
+    if (!pkmAbilities.has(pid)) pkmAbilities.set(pid, [])
+    const aInfo = abilityDict.get(pa.ability_id)
+    if (aInfo) {
+      pkmAbilities.get(pid)!.push({
+        ...aInfo,
+        isHidden: pa.is_hidden === '1'
+      })
+    }
+  })
+
+  // 8. Pokemon & species
   const speciesToDefaultPokemon = new Map<string, string>()
   // First pass: identify default pokemon for each species
   pokemonRaw.forEach((p: any) => {
@@ -196,25 +245,32 @@ function main() {
     const primaryType = pTypes[0]?.name || '未知'
 
     nodes.push({
-      id: `pokemon-${pId}`,
-      name: fullName,
-      val: Math.max(3, bst / 100),
-      group: primaryType,
-      sprite: pId,
-      types: pTypes.map(t => t.name),
-      generation: sInfo.generation,
-      pokedexNumber: String(spId).padStart(4, '0'),
-      color: COLOR_MAP[Number(sInfo.color_id)] || '未知',
+      i: `pokemon-${pId}`,
+      n: fullName,
+      v: +(Math.max(3, bst / 100)).toFixed(1),
+      g: primaryType,
+      s: pId,
+      c: COLOR_MAP[Number(sInfo.color_id)] || ''
     })
 
     // Add type links
     pTypes.forEach(t => {
       links.push({
-        id: `type-${pId}-${t.slug}`,
-        source: `pokemon-${pId}`,
-        target: t.id,
-        value: 1,
-        type: 'type-link'
+        i: `t-${pId}-${t.slug}`,
+        s: `pokemon-${pId}`,
+        t: t.id,
+        ty: 'type-link'
+      })
+    })
+
+    // Add ability links
+    const pAbilities = pkmAbilities.get(pId) || []
+    pAbilities.forEach(a => {
+      links.push({
+        i: `a-${pId}-${a.id}`,
+        s: `pokemon-${pId}`,
+        t: a.id,
+        ty: 'ability-link'
       })
     })
 
@@ -222,11 +278,10 @@ function main() {
     const defaultPkmId = speciesToDefaultPokemon.get(spId)
     if (defaultPkmId && defaultPkmId !== `pokemon-${pId}`) {
       links.push({
-        id: `form-${defaultPkmId}-${pId}`,
-        source: defaultPkmId,
-        target: `pokemon-${pId}`,
-        value: 1,
-        type: 'form-link'
+        i: `f-${defaultPkmId}-${pId}`,
+        s: defaultPkmId,
+        t: `pokemon-${pId}`,
+        ty: 'form-link'
       })
     }
   })
@@ -247,15 +302,88 @@ function main() {
     const triggerName = evo.evolution_trigger_id ? getLocalized(triggerProse, 'evolution_trigger_id', evo.evolution_trigger_id) : 'unknown'
 
     links.push({
-      id: `evo-${evo.id}`,
-      source: fromPkmId,
-      target: toPkmId,
-      value: 1,
-      type: 'evolution',
-      trigger: triggerName,
-      minLevel: evo.minimum_level ? Number(evo.minimum_level) : null,
-      label: summary
+      i: `e-${evo.id}`,
+      s: fromPkmId,
+      t: toPkmId,
+      ty: 'evolution'
     })
+  })
+
+  // 9. Build Details Map
+  console.log('Building details map...')
+  const details: Record<string, any> = {}
+
+  // Type details
+  typesRaw.forEach((t: any) => {
+    const tId = t.id
+    const tInfo = typeDict.get(tId)
+    if (tInfo) {
+      details[tInfo.id] = {
+        name: tInfo.name,
+        type: 'type'
+      }
+    }
+  })
+
+  // Ability details
+  abilitiesRaw.forEach((a: any) => {
+    const aInfo = abilityDict.get(a.id)
+    if (aInfo) {
+      details[aInfo.id] = {
+        name: aInfo.name,
+        description: aInfo.description,
+        type: 'ability'
+      }
+    }
+  })
+
+  // Pokemon details
+  pokemonRaw.forEach((p: any) => {
+    const pId = p.id
+    const spId = p.species_id
+    const sInfo = speciesInfo.get(spId)
+    if (!sInfo) return
+
+    const pTypes = pkmTypes.get(pId) || []
+    
+    // We need to re-calculate name logic here or store it earlier
+    // To keep it simple for this script, let's just use the nodes list we built
+    const node = nodes.find(n => n.i === `pokemon-${pId}`)
+
+    details[`pokemon-${pId}`] = {
+      name: node?.n || p.identifier,
+      types: pTypes.map(t => t.name),
+      generation: sInfo.generation,
+      pokedexNumber: String(spId).padStart(4, '0'),
+      color: COLOR_MAP[Number(sInfo.color_id)] || '未知',
+      type: 'pokemon'
+    }
+  })
+
+  // Link details
+  links.forEach((l: any) => {
+    // For evolution links, add trigger and label
+    const evo = evoRaw.find((e: any) => `e-${e.id}` === l.i)
+    if (evo) {
+      details[l.i] = {
+        trigger: evo.evolution_trigger_id ? getLocalized(triggerProse, 'evolution_trigger_id', evo.evolution_trigger_id) : 'unknown',
+        label: buildConditionsSummary(evo, triggerProse)
+      }
+    }
+    
+    // For ability links, add isHidden
+    const pkmIdMatch = l.i.match(/^a-(\d+)-ability-(\d+)$/)
+    if (pkmIdMatch) {
+      const pId = pkmIdMatch[1]
+      const aId = pkmIdMatch[2]
+      const pa = pokemonAbilitiesRaw.find((p: any) => p.pokemon_id === pId && p.ability_id === aId)
+      if (pa) {
+        details[l.i] = {
+          isHidden: pa.is_hidden === '1',
+          label: pa.is_hidden === '1' ? '隐藏特性' : '普通特性'
+        }
+      }
+    }
   })
 
   // Write output
@@ -266,14 +394,17 @@ function main() {
       nodes: nodes.length,
       links: links.length,
       typeCount: typeDict.size,
+      abilityCount: abilityDict.size,
       evolutionChainCount: new Set(Array.from(speciesInfo.values()).map(s => s.evoChainId)).size
     },
     nodes,
     links
   }
 
-  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2))
-  console.log(`Generated ${nodes.length} nodes and ${links.length} links to ${OUTPUT_PATH}`)
+  fs.writeFileSync(GRAPH_OUTPUT_PATH, JSON.stringify(output)) // Minified
+  fs.writeFileSync(DETAILS_OUTPUT_PATH, JSON.stringify(details))
+  
+  console.log(`Generated minified graph (${nodes.length} nodes) and details map to public/`)
 }
 
 main()
