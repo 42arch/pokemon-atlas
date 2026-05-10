@@ -1,41 +1,34 @@
+# Pokémon Graph
 
-# Next.js Starter Template
+[中文文档](README.zh-CN.md)
 
-## Project Purpose
+### Welcome to the Pokémon Universe
+**Pokémon Graph** is an interactive, visual encyclopedia that lets you explore the vast and interconnected world of Pokémon. Instead of browsing traditional lists or wikis, you can dive into a massive, interconnected constellation of Pokémon, Types, and Abilities.
 
-This project provides a ready-to-use Next.js starter template for quickly building modern web applications. It comes with a pre-configured frontend tech stack and best practices, making it suitable for personal projects, enterprise apps, or learning purposes.
+### What You Can Do
+- **Explore Relationships**: See how different Pokémon are connected through evolution paths, shared types, and common abilities (including hidden abilities).
+- **Search & Discover**: Quickly find your favorite Pokémon, Type, or Ability using the built-in search.
+- **Focus Mode**: Click on any node to isolate it and immediately highlight its direct connections.
+- **Rich Details**: View detailed information directly in the side panel, including Pokédex numbers, generation info, ability effects, and precise evolution triggers (e.g., "Level up", "Use item").
+- **Custom Filters**: 
+  - Toggle specific connection types on or off (Type, Evolution, Ability) to declutter the graph.
+  - Filter the entire universe to only show Pokémon from your favorite Generation.
 
+### Getting Started
 
-## Tech Stack
-
-- **Next.js 16**: React-based framework for SSR and SSG
-- **TypeScript**: Type-safe JavaScript superset
-- **Tailwind CSS 4**: Utility-first CSS framework with dark mode support
-- **shadcn/ui**: Customizable UI component library
-- **next-themes**: Theme switching (light/dark mode) support
-- **ESLint + @antfu/eslint-config**: Code quality and style checking
-- **pnpm**: Fast, disk space efficient package manager
-
----
-
-## Getting Started
-
-Install dependencies and start the development server:
-
+#### 1. Install Dependencies
 ```bash
 pnpm install
-pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to see the result.
+#### 2. Prepare Data
+Run the following command to build the Pokémon dataset:
+```bash
+pnpm data:csv
+```
 
-You can start editing the page by modifying `src/app/page.tsx`. The page will auto-update as you save changes.
-
----
-
-## Useful Links
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [React Documentation](https://react.dev/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/)
-- [shadcn/ui Docs](https://ui.shadcn.com/)
+#### 3. Run the App
+```bash
+pnpm dev
+```
+Open [http://localhost:3000](http://localhost:3000) with your browser to start exploring!
