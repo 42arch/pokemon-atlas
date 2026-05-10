@@ -57,7 +57,7 @@ function getEndpointId(endpoint: string | GraphNode) {
 }
 
 function getLinkId(link: GraphLink) {
-  return `${getEndpointId(link.source)}-${getEndpointId(link.target)}-${link.type}`
+  return link.id || `${getEndpointId(link.source)}-${getEndpointId(link.target)}-${link.type}`
 }
 
 function getSpriteUrl(sprite: string) {
@@ -102,10 +102,12 @@ export default function PokemonGraph() {
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [confirmedQuery, setConfirmedQuery] = useState('')
   const [showTypeLinks, setShowTypeLinks] = useState(true)
   const [showEvolutionLinks, setShowEvolutionLinks] = useState(true)
   const [generationFilter, setGenerationFilter] = useState<'all' | number>('all')
-  const deferredQuery = useDeferredValue(query)
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false)
+  const deferredQuery = useDeferredValue(confirmedQuery)
 
   useEffect(() => {
     let active = true
@@ -194,12 +196,15 @@ export default function PokemonGraph() {
       const matchedNodeIds = new Set<string>()
       payload.nodes.forEach(node => {
         if (visibleNodeIds.has(node.id)) {
-          if (node.name.toLowerCase().includes(query) || node.id.toLowerCase().includes(query)) {
+          const lowerName = node.name.toLowerCase()
+          const lowerId = node.id.toLowerCase()
+          if (lowerName === query || lowerId === query) {
             matchedNodeIds.add(node.id)
           }
         }
       })
 
+      // 1. Expand matched nodes through Evolution/Form links
       const visitedSearchNodes = new Set<string>(matchedNodeIds)
       const queue = Array.from(matchedNodeIds)
       
@@ -219,14 +224,31 @@ export default function PokemonGraph() {
         }
       }
 
+      // 2. Handle Type links differently based on query
+      // If a type node was matched, we want to show its pokemon.
+      // But we DON'T want to show other type nodes unless they also match the query.
       const nodesWithTypes = Array.from(visitedSearchNodes)
       for (const currId of nodesWithTypes) {
+        const currNode = baseNodeMap.get(currId)
         for (const link of links) {
           const sourceId = getEndpointId(link.source)
           const targetId = getEndpointId(link.target)
+          
           if (link.type === 'type-link' && (sourceId === currId || targetId === currId)) {
-            visitedSearchNodes.add(sourceId)
-            visitedSearchNodes.add(targetId)
+            const otherId = sourceId === currId ? targetId : sourceId
+            const otherNode = baseNodeMap.get(otherId)
+            
+            if (otherNode?.isType) {
+              // If we found a type node, only add it if it matches the query
+              if (matchedNodeIds.has(otherId)) {
+                visitedSearchNodes.add(otherId)
+              }
+            } else {
+              // If we found a pokemon node from a matched type node
+              if (currNode?.isType && matchedNodeIds.has(currId)) {
+                visitedSearchNodes.add(otherId)
+              }
+            }
           }
         }
       }
@@ -290,7 +312,7 @@ export default function PokemonGraph() {
   }, [filteredGraph.links, selectedLinkId, selectedNodeId, visibleNodeMap])
 
   const searchResults = useMemo(() => {
-    const keyword = deferredQuery.trim().toLowerCase()
+    const keyword = query.trim().toLowerCase()
     if (!keyword)
       return []
 
@@ -298,7 +320,7 @@ export default function PokemonGraph() {
       .filter(node => node.name.toLowerCase().includes(keyword) || node.id.toLowerCase().includes(keyword))
       .sort((a, b) => Number(Boolean(a.isType)) - Number(Boolean(b.isType)))
       .slice(0, 8)
-  }, [deferredQuery, filteredGraph.nodes])
+  }, [query, filteredGraph.nodes])
 
   const highlightedNodeIds = useMemo(() => {
     const ids = new Set<string>()
@@ -385,18 +407,43 @@ export default function PokemonGraph() {
                 <div className="relative group">
                   <input
                     value={query}
-                    onChange={event => setQuery(event.target.value)}
+                    onChange={event => {
+                      setQuery(event.target.value)
+                      setIsDropdownVisible(true)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setConfirmedQuery(query)
+                        setIsDropdownVisible(false)
+                      }
+                    }}
                     placeholder="搜索名称或属性..."
-                    className="w-full rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#89b4ff] focus:bg-white/10 transition-all"
+                    className="w-full rounded border border-white/10 bg-white/5 pl-3 pr-10 py-2 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#89b4ff] focus:bg-white/10 transition-all"
                   />
-                  {searchResults.length > 0 && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setConfirmedQuery(query)
+                      setIsDropdownVisible(false)
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-white/40 hover:text-[#89b4ff] transition-colors"
+                  >
+                    <MagnifyingGlass className="size-4" />
+                  </button>
+
+                  {isDropdownVisible && searchResults.length > 0 && (
                     <div className="absolute inset-x-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-lg border border-white/12 bg-[#0a1022]/95 p-1 shadow-2xl backdrop-blur-xl">
                       {searchResults.map(node => (
                         <button
                           key={node.id}
                           type="button"
                           className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white"
-                          onClick={() => focusNode(node)}
+                          onClick={() => {
+                            setQuery(node.name)
+                            setConfirmedQuery(node.name)
+                            focusNode(node)
+                            setIsDropdownVisible(false)
+                          }}
                         >
                           <span>{node.name}</span>
                           <span className="text-[10px] uppercase tracking-[0.22em] text-white/35">

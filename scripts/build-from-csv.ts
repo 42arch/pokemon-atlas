@@ -5,6 +5,19 @@ import { parse } from 'csv-parse/sync'
 const RAW_DIR = path.join(process.cwd(), 'scripts/raw')
 const OUTPUT_PATH = path.join(process.cwd(), 'public/graph-data.json')
 
+const COLOR_MAP: Record<number, string> = {
+  1: '黑色',
+  2: '蓝色',
+  3: '褐色',
+  4: '灰色',
+  5: '绿色',
+  6: '粉红色',
+  7: '紫色',
+  8: '红色',
+  9: '白色',
+  10: '黄色',
+}
+
 function readCsv(filename: string) {
   const content = fs.readFileSync(path.join(RAW_DIR, filename), 'utf8')
   return parse(content, { columns: true, skip_empty_lines: true })
@@ -120,6 +133,7 @@ function main() {
       generation: Number(sp.generation_id),
       evoChainId: sp.evolution_chain_id,
       evolvesFrom: sp.evolves_from_species_id,
+      color_id: sp.color_id,
     })
   })
 
@@ -155,15 +169,23 @@ function main() {
     // If it's a special form, try to get the form name
     if (p.is_default !== '1') {
       const formId = pokemonToFormId.get(pId)
+      const sRaw = speciesRaw.find((s: any) => s.id === spId)
+      const speciesIdentifier = sRaw?.identifier || ''
+
       if (formId) {
         const formName = getLocalized(formNamesRaw, 'pokemon_form_id', formId)
         if (formName && formName !== 'Unknown' && !fullName.includes(formName)) {
-           fullName = `${speciesBaseName} (${formName})`
+           fullName = `${speciesBaseName}-${formName}`
         } else {
-           // Fallback to identifier parts if localized form name is missing
-           const formPart = p.identifier.replace(speciesBaseName.toLowerCase(), '').replace(/^-/, '')
+           // Fallback to identifier parts
+           let formPart = p.identifier
+           if (speciesIdentifier) {
+             formPart = formPart.replace(speciesIdentifier.toLowerCase(), '')
+           }
+           formPart = formPart.replace(/^-/, '').replace(/-$/, '')
+           
            if (formPart) {
-             fullName = `${speciesBaseName} (${formPart})`
+             fullName = `${speciesBaseName}-${formPart}`
            }
         }
       }
@@ -182,11 +204,13 @@ function main() {
       types: pTypes.map(t => t.name),
       generation: sInfo.generation,
       pokedexNumber: String(spId).padStart(4, '0'),
+      color: COLOR_MAP[Number(sInfo.color_id)] || '未知',
     })
 
     // Add type links
     pTypes.forEach(t => {
       links.push({
+        id: `type-${pId}-${t.slug}`,
         source: `pokemon-${pId}`,
         target: t.id,
         value: 1,
@@ -198,6 +222,7 @@ function main() {
     const defaultPkmId = speciesToDefaultPokemon.get(spId)
     if (defaultPkmId && defaultPkmId !== `pokemon-${pId}`) {
       links.push({
+        id: `form-${defaultPkmId}-${pId}`,
         source: defaultPkmId,
         target: `pokemon-${pId}`,
         value: 1,
@@ -222,6 +247,7 @@ function main() {
     const triggerName = evo.evolution_trigger_id ? getLocalized(triggerProse, 'evolution_trigger_id', evo.evolution_trigger_id) : 'unknown'
 
     links.push({
+      id: `evo-${evo.id}`,
       source: fromPkmId,
       target: toPkmId,
       value: 1,
