@@ -21,16 +21,16 @@ export const TYPE_COLORS: Record<string, string> = {
 }
 
 export const POKEMON_COLORS: Record<string, string> = {
-  "红色": "#ec8384",
-  "蓝色": "#94dbee",
-  "绿色": "#aad15e",
-  "黄色": "#ffff99",
-  "紫色": "#c596bd",
-  "粉红色": "#ffdcff",
-  "褐色": "#cc9966",
-  "黑色": "#bbbbbb",
-  "灰色": "#eeeeee",
-  "白色": "#ffffff",
+  红色: '#ec8384',
+  蓝色: '#94dbee',
+  绿色: '#aad15e',
+  黄色: '#ffff99',
+  紫色: '#c596bd',
+  粉红色: '#ffdcff',
+  褐色: '#cc9966',
+  黑色: '#bbbbbb',
+  灰色: '#eeeeee',
+  白色: '#ffffff',
 }
 
 export const SPRITE_URL_PREFIX = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'

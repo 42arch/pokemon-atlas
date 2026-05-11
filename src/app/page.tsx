@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 
-const PokemonGraph = dynamic(() => import('@/components/PokemonGraph'), {
+const PokemonGraph = dynamic(() => import('@/components/pokemon-graph'), {
   ssr: false,
   loading: () => (
     <div className="flex min-h-screen items-center justify-center bg-[#060816] text-white">

@@ -10,7 +10,7 @@
 - **Search & Discover**: Quickly find your favorite Pokémon, Type, or Ability using the built-in search.
 - **Focus Mode**: Click on any node to isolate it and immediately highlight its direct connections.
 - **Rich Details**: View detailed information directly in the side panel, including Pokédex numbers, generation info, ability effects, and precise evolution triggers (e.g., "Level up", "Use item").
-- **Custom Filters**: 
+- **Custom Filters**:
   - Toggle specific connection types on or off (Type, Evolution, Ability) to declutter the graph.
   - Filter the entire universe to only show Pokémon from your favorite Generation.
 
