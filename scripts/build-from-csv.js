@@ -394,6 +394,7 @@ function main() {
       pokedexNumber: String(spId).padStart(4, '0'),
       color: COLOR_MAP[Number(sInfo.color_id)] || '未知',
       type: 'pokemon',
+      abilities: pkmAbilities.get(pId) || [],
       moves: (pkmMoves.get(pId) || []).sort((a, b) => a.level - b.level),
     }
   })

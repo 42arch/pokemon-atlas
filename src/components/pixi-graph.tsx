@@ -460,13 +460,14 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         if (source.x != null && source.y != null && target.x != null && target.y != null) {
           let color = 0x60A5FA; let alpha = 0.15; let width = 1
           if (link.ty === 'evolution') { color = 0x10B981; alpha = 0.4 }
-          else if (link.ty === 'form-link') { color = 0xF59E0B; alpha = 0.35; width = 1.2 }
-          else if (link.ty === 'ability-link') { color = 0xA855F7; alpha = 0.3; width = 1 }
-          else if (link.ty === 'move-link') { color = 0xFF5E3D; alpha = 0.25; width = 0.8 }
+          else if (link.ty === 'form-link') { color = 0xF59E0B; alpha = 0.35 }
+          else if (link.ty === 'ability-link') { color = 0xA855F7; alpha = 0.3 }
+          else if (link.ty === 'move-link') { color = 0xFF5E3D; alpha = 0.25 }
 
           if (selectedNodeIdRef.current) {
             if (highlightedLinks.has(link)) {
-              alpha = Math.min(1.0, alpha * 2.5); width = 2
+              alpha = Math.min(1.0, alpha * 2.5)
+              width = 2
               color = link.ty === 'evolution' ? 0x34D399 : (link.ty === 'form-link' ? 0xFBCD5D : (link.ty === 'ability-link' ? 0xC084FC : (link.ty === 'move-link' ? 0xFF8A71 : 0x93C5FD)))
             }
             else { alpha *= 0.1 } // Dim even more

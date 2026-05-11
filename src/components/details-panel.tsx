@@ -1,10 +1,11 @@
 import type { GraphLink, GraphNode } from './pixi-graph'
 import type { NodeDetails } from '@/lib/graph-utils'
-import { LightningIcon, SparkleIcon, SwordIcon, TargetIcon } from '@phosphor-icons/react'
+import { FingerprintIcon, LightningIcon, SparkleIcon, SwordIcon, TargetIcon } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TYPE_COLORS } from '@/lib/constants'
 import { generationLabel, getEndpointId, getLinkId, getSpriteUrl } from '@/lib/graph-utils'
+import { cn } from '@/lib/utils'
 
 interface DetailsPanelProps {
   infoNode: GraphNode | null
@@ -101,17 +102,53 @@ export function DetailsPanel({
                 )}
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="border border-white/10 bg-white/4 p-3">
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">关系数</div>
-                    <div className="mt-2 text-xl font-semibold text-[#ffcf5a]">{selectedNodeLinks.length}</div>
-                  </div>
-                  <div className="border border-white/10 bg-white/4 p-3">
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">邻接节点</div>
-                    <div className="mt-2 text-xl font-semibold text-[#89b4ff]">
-                      {adjacency.relationMap.get(infoNode.i)?.size || 0}
+                  {[
+                    { label: '关联属性', count: details?.[infoNode.i]?.types?.length || 0, color: '#89b4ff', icon: 'Type' },
+                    { label: '进化链', count: selectedNodeLinks.filter(l => l.ty === 'evolution').length, color: '#7df2c0', icon: 'Evo' },
+                    { label: '拥有特性', count: details?.[infoNode.i]?.abilities?.length || 0, color: '#a855f7', icon: 'Abi' },
+                    { label: '习得招式', count: details?.[infoNode.i]?.moves?.length || 0, color: '#ff5e3d', icon: 'Mov' },
+                  ].map((stat) => (
+                    <div key={stat.label} className="relative overflow-hidden border border-white/10 bg-white/4 p-3 transition hover:bg-white/8">
+                      <div className="text-[9px] uppercase tracking-[0.15em] text-white/30">{stat.label}</div>
+                      <div className="mt-1 flex items-baseline gap-1">
+                        <div className="text-xl font-bold font-mono" style={{ color: stat.color }}>{stat.count}</div>
+                        <div className="text-[10px] text-white/20">项</div>
+                      </div>
+                      <div className="absolute -right-1 -top-1 opacity-[0.03] text-4xl font-black italic select-none" style={{ color: stat.color }}>
+                        {stat.icon}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {infoNode && (details?.[infoNode.i]?.abilities?.length ?? 0) > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-white/38">
+                      <FingerprintIcon className="size-3.5 text-[#a855f7]" />
+                      特性能力
+                    </div>
+                    <div className="space-y-2">
+                      {details?.[infoNode.i]?.abilities?.map((ability) => (
+                        <div key={ability.id} className={cn(
+                          'border p-3 transition-colors',
+                          ability.isHidden ? 'border-[#a855f7]/30 bg-[#a855f7]/5' : 'border-white/10 bg-white/4'
+                        )}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-semibold text-white">{ability.name}</span>
+                            {ability.isHidden && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#a855f7]/20 text-[#a855f7] border border-[#a855f7]/30 uppercase font-bold tracking-wider">
+                                Hidden
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-white/50 leading-relaxed italic">
+                            {ability.description || '暂无详细描述'}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
+                )}
                 
                 {infoNode && details?.[infoNode.i]?.moves && (details[infoNode.i]?.moves?.length ?? 0) > 0 && (
                   <div className="space-y-2">
@@ -120,8 +157,8 @@ export function DetailsPanel({
                       可学招式 (Gen 9)
                     </div>
                     <div className="max-h-48 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-white/10">
-                      {details?.[infoNode.i]?.moves?.map((move) => (
-                        <div key={move.id} className="group flex items-center justify-between border border-white/5 bg-white/[0.02] p-2 transition hover:bg-white/[0.05]">
+                      {details?.[infoNode.i]?.moves?.map((move, idx) => (
+                        <div key={`${move.id}-${move.method}-${move.level}-${idx}`} className="group flex items-center justify-between border border-white/5 bg-white/[0.02] p-2 transition hover:bg-white/[0.05]">
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-medium text-white/90">{move.name}</span>

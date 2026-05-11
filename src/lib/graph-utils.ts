@@ -12,6 +12,13 @@ export interface Move {
   method: string
 }
 
+export interface AbilityDetail {
+  id: string
+  name: string
+  description: string
+  isHidden: boolean
+}
+
 export interface NodeDetails {
   name: string
   type: 'pokemon' | 'ability' | 'type' | 'move'
@@ -24,6 +31,7 @@ export interface NodeDetails {
   label?: string
   isHidden?: boolean
   moves?: Move[]
+  abilities?: AbilityDetail[]
   power?: string
   pp?: string
   accuracy?: string
