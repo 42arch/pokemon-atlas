@@ -1,6 +1,6 @@
 import type { GraphLink, GraphNode } from './pixi-graph'
 import type { NodeDetails } from '@/lib/graph-utils'
-import { LightningIcon, SparkleIcon, TargetIcon } from '@phosphor-icons/react'
+import { LightningIcon, SparkleIcon, SwordIcon, TargetIcon } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TYPE_COLORS } from '@/lib/constants'
@@ -112,6 +112,39 @@ export function DetailsPanel({
                     </div>
                   </div>
                 </div>
+                
+                {infoNode && details?.[infoNode.i]?.moves && (details[infoNode.i]?.moves?.length ?? 0) > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-white/38">
+                      <SwordIcon className="size-3.5 text-[#ff5e3d]" />
+                      可学招式 (Gen 9)
+                    </div>
+                    <div className="max-h-48 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-white/10">
+                      {details?.[infoNode.i]?.moves?.map((move) => (
+                        <div key={move.id} className="group flex items-center justify-between border border-white/5 bg-white/[0.02] p-2 transition hover:bg-white/[0.05]">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-white/90">{move.name}</span>
+                              <span className="text-[9px] text-white/30">Lv.{move.level}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[8px] px-1 bg-white/5 text-white/40 uppercase tracking-tighter">
+                                {move.damage_class_id === '2' ? '物理' : move.damage_class_id === '3' ? '特殊' : '变化'}
+                              </span>
+                              <span className="text-[9px] text-white/20 font-mono">
+                                {move.power && move.power !== '0' ? `ATK:${move.power}` : ''} 
+                                {move.accuracy && move.accuracy !== '0' ? ` ACC:${move.accuracy}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-white/40 font-medium">
+                            PP {move.pp}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-white/38">

@@ -20,6 +20,7 @@ export interface GraphNode extends d3.SimulationNodeDatum {
   g: string // group
   it?: boolean // isType
   ia?: boolean // isAbility
+  im?: boolean // isMove
   s?: string // sprite
   c?: string // color
   // Internal properties
@@ -276,10 +277,10 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
 
     const nodes = rawNodes.map(n => ({
       ...n,
-      radius: n.it ? 18 : (n.ia ? 15 : Math.max(12, n.v * 1.5)),
+      radius: n.it ? 18 : (n.ia ? 15 : (n.im ? 10 : Math.max(12, n.v * 1.5))),
       color: n.it
         ? (TYPE_COLORS[n.n] || '#89b4ff')
-        : (n.ia ? '#a855f7' : (POKEMON_COLORS[n.c || ''] || TYPE_COLORS[n.g] || '#475569')),
+        : (n.ia ? '#a855f7' : (n.im ? '#ff5e3d' : (POKEMON_COLORS[n.c || ''] || TYPE_COLORS[n.g] || '#475569'))),
     }))
     const nodeMap = new Map(nodes.map(n => [n.i, n]))
     const validLinks = rawLinks
@@ -303,9 +304,11 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
           return 120
         if (d.ty === 'ability-link')
           return 90
+        if (d.ty === 'move-link')
+          return 60
         return 70
       }))
-      .force('charge', d3.forceManyBody<GraphNode>().strength(d => d.it ? -500 : (d.ia ? -300 : -200)))
+      .force('charge', d3.forceManyBody<GraphNode>().strength(d => d.it ? -500 : (d.ia ? -300 : (d.im ? -150 : -200))))
       .force('center', d3.forceCenter(app.screen.width / 2, app.screen.height / 2))
       .force('collide', d3.forceCollide<GraphNode>().radius(d => (d.radius || 12) + 10))
     simulationRef.current = simulation
@@ -331,6 +334,10 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
           points.push(Math.cos(angle) * currR, Math.sin(angle) * currR)
         }
         highlightGraphics.poly(points)
+      }
+      else if (node.im) {
+        // Square for moves
+        highlightGraphics.rect(-r - 2, -r - 2, (r + 2) * 2, (r + 2) * 2)
       }
       else {
         highlightGraphics.circle(0, 0, r + 3)
@@ -387,8 +394,8 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       }
 
       const text = new PIXI.Text({
-        text: node.it ? `${node.n}属性` : (node.ia ? `${node.n}特性` : node.n),
-        style: { fontFamily: '"JetBrains Mono", monospace', fontSize: node.it ? 14 : (node.ia ? 12 : 10), fill: 0x94A3B8, align: 'center' },
+        text: node.n,
+        style: { fontFamily: '"JetBrains Mono", monospace', fontSize: node.it ? 14 : (node.ia ? 12 : (node.im ? 9 : 10)), fill: 0x94A3B8, align: 'center' },
         resolution: window.devicePixelRatio * 2,
       })
       text.anchor.set(0.5, 0); text.y = (node.radius || 12) + 4
@@ -409,6 +416,9 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
           points.push(Math.cos(angle) * currR, Math.sin(angle) * currR)
         }
         shape.poly(points)
+      }
+      else if (node.im) {
+        shape.rect(-r, -r, r * 2, r * 2)
       }
       else {
         shape.circle(0, 0, r)
@@ -435,11 +445,12 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
           if (link.ty === 'evolution') { color = 0x10B981; alpha = 0.4 }
           else if (link.ty === 'form-link') { color = 0xF59E0B; alpha = 0.35; width = 1.2 }
           else if (link.ty === 'ability-link') { color = 0xA855F7; alpha = 0.3; width = 1 }
+          else if (link.ty === 'move-link') { color = 0xFF5E3D; alpha = 0.25; width = 0.8 }
 
           if (selectedNodeIdRef.current) {
             if (highlightedLinks.has(link)) {
               alpha = Math.min(1.0, alpha * 2.5); width = 2
-              color = link.ty === 'evolution' ? 0x34D399 : (link.ty === 'form-link' ? 0xFBCD5D : (link.ty === 'ability-link' ? 0xC084FC : 0x93C5FD))
+              color = link.ty === 'evolution' ? 0x34D399 : (link.ty === 'form-link' ? 0xFBCD5D : (link.ty === 'ability-link' ? 0xC084FC : (link.ty === 'move-link' ? 0xFF8A71 : 0x93C5FD)))
             }
             else { alpha *= 0.15 }
           }
@@ -469,7 +480,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         }
         validLinks.forEach((link) => {
           const sId = (link.source as GraphNode).i; const tId = (link.target as GraphNode).i
-          if ((sId === localId || tId === localId) && (link.ty === 'type-link' || link.ty === 'ability-link'))
+          if ((sId === localId || tId === localId) && (link.ty === 'type-link' || link.ty === 'ability-link' || link.ty === 'move-link'))
             highlightedLinks.add(link)
         })
       }

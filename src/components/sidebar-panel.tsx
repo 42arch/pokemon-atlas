@@ -22,6 +22,8 @@ interface SidebarPanelProps {
   setShowEvolutionLinks: Dispatch<SetStateAction<boolean>>
   showAbilityLinks: boolean
   setShowAbilityLinks: Dispatch<SetStateAction<boolean>>
+  showMoveLinks: boolean
+  setShowMoveLinks: Dispatch<SetStateAction<boolean>>
   generationFilter: number | 'all'
   setGenerationFilter: (val: number | 'all') => void
   generations: number[]
@@ -29,6 +31,7 @@ interface SidebarPanelProps {
     pokemonCount: number
     typeCount: number
     abilityCount: number
+    moveCount: number
   }
 }
 
@@ -47,6 +50,8 @@ export function SidebarPanel({
   setShowEvolutionLinks,
   showAbilityLinks,
   setShowAbilityLinks,
+  showMoveLinks,
+  setShowMoveLinks,
   generationFilter,
   setGenerationFilter,
   generations,
@@ -109,7 +114,7 @@ export function SidebarPanel({
                   >
                     <span>{node.n}</span>
                     <span className="text-[10px] uppercase tracking-[0.22em] text-white/35">
-                      {node.it ? 'Type' : node.ia ? 'Ability' : details?.[node.i] ? generationLabel(details[node.i].generation) : ''}
+                      {node.it ? 'Type' : node.ia ? 'Ability' : node.im ? 'Move' : details?.[node.i] ? generationLabel(details[node.i].generation) : ''}
                     </span>
                   </button>
                 ))}
@@ -143,6 +148,13 @@ export function SidebarPanel({
                 onClick={() => setShowAbilityLinks(value => !value)}
               >
                 特性
+              </Button>
+              <Button
+                variant={showMoveLinks ? 'default' : 'outline'}
+                className={cn('h-8 text-xs border-white/12', showMoveLinks && 'bg-[#ff5e3d] text-white hover:bg-[#ff5e3d]/90')}
+                onClick={() => setShowMoveLinks(value => !value)}
+              >
+                招式
               </Button>
             </div>
           </div>
@@ -186,6 +198,10 @@ export function SidebarPanel({
             <div className="flex-1">
               <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前特性</div>
               <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.abilityCount}</div>
+            </div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前招式</div>
+              <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.moveCount}</div>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { parse } = require('csv-parse/sync')
 
-const RAW_DIR = path.join(process.cwd(), 'scripts/raw')
+const RAW_DIR = path.join(process.cwd(), 'data/csv')
 const GRAPH_OUTPUT_PATH = path.join(process.cwd(), 'public/graph-data.json')
 const DETAILS_OUTPUT_PATH = path.join(process.cwd(), 'public/node-details.json')
 const COLOR_MAP = {
@@ -87,6 +87,9 @@ function main() {
   const abilityNamesRaw = readCsv('ability_names.csv')
   const abilityProseRaw = readCsv('ability_prose.csv')
   const pokemonAbilitiesRaw = readCsv('pokemon_abilities.csv')
+  const movesRaw = readCsv('moves.csv')
+  const moveNamesRaw = readCsv('move_names.csv')
+  const pokemonMovesRaw = readCsv('pokemon_moves.csv')
   const nodes = []
   const links = []
   // 1. Types
@@ -177,7 +180,53 @@ function main() {
       })
     }
   })
-  // 8. Pokemon & species
+  // 8. Moves mapping
+  const moveDict = new Map()
+  movesRaw.forEach((m) => {
+    const mId = m.id
+    const mName = getLocalized(moveNamesRaw, 'move_id', mId)
+    moveDict.set(mId, {
+      id: mId,
+      name: mName,
+      type_id: m.type_id,
+      power: m.power,
+      pp: m.pp,
+      accuracy: m.accuracy,
+      damage_class_id: m.damage_class_id,
+    })
+  })
+  // 9. Pokemon moves mapping (Filter for Gen 9 - version_group_id 25)
+  const pkmMoves = new Map()
+  const usedMoveIds = new Set()
+  pokemonMovesRaw.forEach((pm) => {
+    // Scan ALL versions to find any possible connection
+    const pid = pm.pokemon_id
+    if (!pkmMoves.has(pid))
+      pkmMoves.set(pid, [])
+    const mInfo = moveDict.get(pm.move_id)
+    if (mInfo && pkmMoves.get(pid).length < 64) { // Increased limit significantly
+      pkmMoves.get(pid).push({
+        ...mInfo,
+        level: Number(pm.level),
+        method: pm.pokemon_move_method_id,
+      })
+      usedMoveIds.add(pm.move_id)
+    }
+  })
+
+  // 9.5 Add moves to nodes only if they are used
+  moveDict.forEach((mInfo, mId) => {
+    if (!usedMoveIds.has(mId))
+      return
+    nodes.push({
+      i: `move-${mId}`,
+      n: mInfo.name,
+      v: 35,
+      g: '招式',
+      im: true,
+    })
+  })
+  // 10. Pokemon & species
   const speciesToDefaultPokemon = new Map()
   // First pass: identify default pokemon for each species
   pokemonRaw.forEach((p) => {
@@ -247,6 +296,16 @@ function main() {
         ty: 'ability-link',
       })
     })
+    // Add move links (top 32 moves to keep performance balanced but coverage high)
+    const pMoves = pkmMoves.get(pId) || []
+    pMoves.slice(0, 32).forEach((m) => {
+      links.push({
+        i: `m-${pId}-${m.id}`,
+        s: `pokemon-${pId}`,
+        t: `move-${m.id}`,
+        ty: 'move-link',
+      })
+    })
     // Link special forms to their base form
     const defaultPkmId = speciesToDefaultPokemon.get(spId)
     if (defaultPkmId && defaultPkmId !== `pokemon-${pId}`) {
@@ -303,6 +362,20 @@ function main() {
       }
     }
   })
+  // Move details
+  movesRaw.forEach((m) => {
+    const mInfo = moveDict.get(m.id)
+    if (mInfo) {
+      details[`move-${m.id}`] = {
+        name: mInfo.name,
+        type: 'move',
+        power: mInfo.power,
+        pp: mInfo.pp,
+        accuracy: mInfo.accuracy,
+        damage_class_id: mInfo.damage_class_id,
+      }
+    }
+  })
   // Pokemon details
   pokemonRaw.forEach((p) => {
     const pId = p.id
@@ -321,6 +394,7 @@ function main() {
       pokedexNumber: String(spId).padStart(4, '0'),
       color: COLOR_MAP[Number(sInfo.color_id)] || '未知',
       type: 'pokemon',
+      moves: (pkmMoves.get(pId) || []).sort((a, b) => a.level - b.level),
     }
   })
   // Link details
@@ -356,6 +430,7 @@ function main() {
       links: links.length,
       typeCount: typeDict.size,
       abilityCount: abilityDict.size,
+      moveCount: moveDict.size,
       evolutionChainCount: new Set(Array.from(speciesInfo.values()).map(s => s.evoChainId)).size,
     },
     nodes,

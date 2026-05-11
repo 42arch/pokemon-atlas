@@ -33,6 +33,7 @@ export default function PokemonGraph() {
   const [showTypeLinks, setShowTypeLinks] = useState(true)
   const [showEvolutionLinks, setShowEvolutionLinks] = useState(true)
   const [showAbilityLinks, setShowAbilityLinks] = useState(false)
+  const [showMoveLinks, setShowMoveLinks] = useState(false)
   const [generationFilter, setGenerationFilter] = useState<'all' | number>('all')
   const [isDropdownVisible, setIsDropdownVisible] = useState(false)
   const deferredQuery = useDeferredValue(confirmedQuery)
@@ -96,7 +97,7 @@ export default function PokemonGraph() {
 
     const visiblePokemon = new Set(
       payload.nodes
-        .filter(node => !node.it && !node.ia)
+        .filter(node => !node.it && !node.ia && !node.im)
         .filter((node) => {
           if (generationFilter === 'all')
             return true
@@ -113,12 +114,21 @@ export default function PokemonGraph() {
         .map(node => node.i),
     )
 
+    // Moves should be considered visible if the toggle is on
+    const visibleMoves = new Set(
+      payload.nodes
+        .filter(node => node.im)
+        .map(node => node.i),
+    )
+
     const links = normalizedLinks.filter((link) => {
       if (link.ty === 'type-link' && !showTypeLinks)
         return false
       if (link.ty === 'evolution' && !showEvolutionLinks)
         return false
       if (link.ty === 'ability-link' && !showAbilityLinks)
+        return false
+      if (link.ty === 'move-link' && !showMoveLinks)
         return false
 
       const sourceId = getEndpointId(link.s)
@@ -139,12 +149,21 @@ export default function PokemonGraph() {
         return showAbilityLinks && visiblePokemon.has(pokemonId)
       }
 
+      if (link.ty === 'move-link') {
+        // Show move link if move toggle is on AND the pokemon is visible
+        const pokemonId = sourceNode.im ? targetId : sourceId
+        return showMoveLinks && visiblePokemon.has(pokemonId)
+      }
+
       return visiblePokemon.has(sourceId) && visiblePokemon.has(targetId)
     })
 
     const visibleNodeIds = new Set<string>(visiblePokemon)
     if (showAbilityLinks) {
       visibleAbilities.forEach(id => visibleNodeIds.add(id))
+    }
+    if (showMoveLinks) {
+      visibleMoves.forEach(id => visibleNodeIds.add(id))
     }
 
     links.forEach((link) => {
@@ -196,7 +215,7 @@ export default function PokemonGraph() {
           const sourceId = getEndpointId(link.s)
           const targetId = getEndpointId(link.t)
 
-          if ((link.ty === 'type-link' || link.ty === 'ability-link') && (sourceId === currId || targetId === currId)) {
+          if ((link.ty === 'type-link' || link.ty === 'ability-link' || link.ty === 'move-link') && (sourceId === currId || targetId === currId)) {
             const otherId = sourceId === currId ? targetId : sourceId
             visitedSearchNodes.add(otherId)
           }
@@ -229,7 +248,7 @@ export default function PokemonGraph() {
     })
 
     return { nodes: finalNodes, links: finalLinks }
-  }, [payload, details, generationFilter, showEvolutionLinks, showTypeLinks, showAbilityLinks, baseNodeMap, deferredQuery])
+  }, [payload, details, generationFilter, showEvolutionLinks, showTypeLinks, showAbilityLinks, showMoveLinks, baseNodeMap, deferredQuery])
 
   const adjacency = useMemo(() => {
     const relationMap = new Map<string, Set<string>>()
@@ -257,10 +276,11 @@ export default function PokemonGraph() {
   }, [filteredGraph.nodes])
 
   const stats = useMemo(() => {
-    const pokemonCount = filteredGraph.nodes.filter(n => !n.it && !n.ia).length
+    const pokemonCount = filteredGraph.nodes.filter(n => !n.it && !n.ia && !n.im).length
     const typeCount = filteredGraph.nodes.filter(n => n.it).length
     const abilityCount = filteredGraph.nodes.filter(n => n.ia).length
-    return { pokemonCount, typeCount, abilityCount }
+    const moveCount = filteredGraph.nodes.filter(n => n.im).length
+    return { pokemonCount, typeCount, abilityCount, moveCount }
   }, [filteredGraph.nodes])
 
   useEffect(() => {
@@ -278,7 +298,7 @@ export default function PokemonGraph() {
 
     return filteredGraph.nodes
       .filter(node => node.n.toLowerCase().includes(keyword) || node.i.toLowerCase().includes(keyword))
-      .sort((a, b) => Number(Boolean(a.it || a.ia)) - Number(Boolean(b.it || b.ia)))
+      .sort((a, b) => Number(Boolean(a.it || a.ia || a.im)) - Number(Boolean(b.it || b.ia || b.im)))
       .slice(0, 8)
   }, [query, filteredGraph.nodes])
 
@@ -354,6 +374,8 @@ export default function PokemonGraph() {
               setShowEvolutionLinks={setShowEvolutionLinks}
               showAbilityLinks={showAbilityLinks}
               setShowAbilityLinks={setShowAbilityLinks}
+              showMoveLinks={showMoveLinks}
+              setShowMoveLinks={setShowMoveLinks}
               generationFilter={generationFilter}
               setGenerationFilter={setGenerationFilter}
               generations={generations}

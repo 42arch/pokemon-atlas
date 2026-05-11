@@ -1,8 +1,20 @@
 import type { GraphLink, GraphNode } from '@/components/pixi-graph'
 
+export interface Move {
+  id: string
+  name: string
+  type_id: string
+  power: string
+  pp: string
+  accuracy: string
+  damage_class_id: string
+  level: number
+  method: string
+}
+
 export interface NodeDetails {
   name: string
-  type: 'pokemon' | 'ability' | 'type'
+  type: 'pokemon' | 'ability' | 'type' | 'move'
   description?: string
   types?: string[]
   generation?: number
@@ -11,6 +23,11 @@ export interface NodeDetails {
   trigger?: string
   label?: string
   isHidden?: boolean
+  moves?: Move[]
+  power?: string
+  pp?: string
+  accuracy?: string
+  damage_class_id?: string
 }
 
 export function getEndpointId(endpoint: string | GraphNode) {

@@ -32,6 +32,10 @@ export function LegendPanel() {
           <span className="inline-flex size-3 [clip-path:polygon(50%_0%,_61%_35%,_98%_35%,_68%_57%,_79%_91%,_50%_70%,_21%_91%,_32%_57%,_2%_35%,_39%_35%)] bg-[#a855f7]" />
           <span>特性节点</span>
         </div>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex size-3 [clip-path:polygon(50%_0%,_100%_50%,_50%_100%,_0%_50%)] bg-[#ff5e3d]" />
+          <span>招式节点</span>
+        </div>
       </CardContent>
     </Card>
   )
