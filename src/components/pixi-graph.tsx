@@ -68,6 +68,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
   const nodeVisualsRef = useRef<Map<string, { container: PIXI.Container, highlight: PIXI.Graphics }>>(new Map())
   const textNodesRef = useRef<PIXI.Text[]>([])
   const updateVisualsRef = useRef<(() => void) | null>(null)
+  const lastViewportState = useRef({ x: 0, y: 0, scale: 0 })
 
   // 1. Initialize PIXI App
   useEffect(() => {
@@ -86,6 +87,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
         antialias: true,
+        preference: 'webgpu'
       })
 
       if (isUnmounted || !containerRef.current) {
@@ -430,17 +432,32 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
     }
 
     let highlightedLinks = new Set<GraphLink>()
-    const drawLinks = () => {
+    const drawLinks = (force = false) => {
       const linkGraphics = linkGraphicsRef.current
-      if (!linkGraphics)
+      const graphContainer = graphContainerRef.current
+      if (!linkGraphics || !graphContainer)
         return
+
+      // Skip drawing if simulation is cold AND viewport hasn't changed (unless forced)
+      const currentScale = graphContainer.scale.x
+      const { x, y } = graphContainer.position
+      const isSimulationRunning = simulationRef.current && simulationRef.current.alpha() > 0.001
+      const hasViewChanged = lastViewportState.current.x !== x || lastViewportState.current.y !== y || lastViewportState.current.scale !== currentScale
+      
+      if (!force && !isSimulationRunning && !hasViewChanged) {
+        return
+      }
+      
+      lastViewportState.current = { x, y, scale: currentScale }
       linkGraphics.clear()
+
+      // Group links by style to minimize state changes
+      const styleGroups = new Map<string, { color: number, alpha: number, width: number, links: any[] }>()
+
       for (const link of validLinks) {
         const source = link.source as GraphNode
         const target = link.target as GraphNode
         if (source.x != null && source.y != null && target.x != null && target.y != null) {
-          linkGraphics.moveTo(source.x, source.y)
-          linkGraphics.lineTo(target.x, target.y)
           let color = 0x60A5FA; let alpha = 0.15; let width = 1
           if (link.ty === 'evolution') { color = 0x10B981; alpha = 0.4 }
           else if (link.ty === 'form-link') { color = 0xF59E0B; alpha = 0.35; width = 1.2 }
@@ -452,11 +469,30 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
               alpha = Math.min(1.0, alpha * 2.5); width = 2
               color = link.ty === 'evolution' ? 0x34D399 : (link.ty === 'form-link' ? 0xFBCD5D : (link.ty === 'ability-link' ? 0xC084FC : (link.ty === 'move-link' ? 0xFF8A71 : 0x93C5FD)))
             }
-            else { alpha *= 0.15 }
+            else { alpha *= 0.1 } // Dim even more
           }
-          linkGraphics.stroke({ color, alpha, width })
+
+          // Skip very faint links when zoomed out
+          if (alpha < 0.03 && currentScale < 0.3) continue
+
+          const key = `${color}-${alpha}-${width}`
+          if (!styleGroups.has(key)) {
+            styleGroups.set(key, { color, alpha, width, links: [] })
+          }
+          styleGroups.get(key)!.links.push({ x1: source.x, y1: source.y, x2: target.x, y2: target.y })
         }
       }
+
+      // Batch draw
+      styleGroups.forEach((group) => {
+        linkGraphics.beginPath()
+        linkGraphics.stroke({ color: group.color, alpha: group.alpha, width: group.width })
+        for (const l of group.links) {
+          linkGraphics.moveTo(l.x1, l.y1)
+          linkGraphics.lineTo(l.x2, l.y2)
+        }
+        linkGraphics.stroke()
+      })
     }
 
     const updateVisuals = () => {
@@ -484,7 +520,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
             highlightedLinks.add(link)
         })
       }
-      drawLinks()
+      drawLinks(true)
     }
     updateVisualsRef.current = updateVisuals
 
