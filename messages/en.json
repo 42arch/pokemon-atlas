@@ -1,0 +1,69 @@
+{
+  "Common": {
+    "title": "Pokémon Atlas",
+    "searchPlaceholder": "Search Pokémon, Types, Abilities...",
+    "noResults": "No results found",
+    "all": "All",
+    "types": "Types",
+    "evolutions": "Evolutions",
+    "abilities": "Abilities",
+    "moves": "Moves",
+    "genFilter": "Generation Filter",
+    "relHierarchy": "Relationship Hierarchy",
+    "stats": {
+      "pokemon": "Pokémon",
+      "type": "Types",
+      "ability": "Abilities",
+      "move": "Moves",
+      "generation": "Gen",
+      "genShort": "Gen",
+      "loading": "INITIALIZING ATLAS..."
+    },
+    "relationLink": "Relationship"
+  },
+  "Details": {
+    "focus": "Focus on this node",
+    "pokedex": "Pokédex",
+    "generation": "Gen",
+    "typeNode": "Type Node",
+    "abilityNode": "Ability Node",
+    "pokemonNode": "Pokémon Node",
+    "moveNode": "Move Node",
+    "relationLink": "Relation Link",
+    "phys": "Phys",
+    "spec": "Spec",
+    "stat": "Stat",
+    "stats": {
+      "types": "Types",
+      "evolutions": "Evolutions",
+      "abilities": "Abilities",
+      "moves": "Moves",
+      "pkmCount": "Pokémon with this type",
+      "unit": "items",
+      "unitPkm": "pkms"
+    },
+    "abilities": "Abilities",
+    "moves": "Moves Learned",
+    "hidden": "Hidden"
+  },
+  "Legend": {
+    "title": "Legend",
+    "description": "Definition of nodes and links.",
+    "typeRel": "Type Belonging",
+    "evoRel": "Evolution Line",
+    "formRel": "Form Change",
+    "abilityRel": "Has Ability",
+    "moveRel": "Can Learn",
+    "pkmNode": "Pokémon",
+    "typeNode": "Type",
+    "abilityNode": "Ability",
+    "moveNode": "Move"
+  },
+  "LinkTypes": {
+    "evolution": "Evolution",
+    "type-link": "Type",
+    "ability-link": "Ability",
+    "move-link": "Move Learned",
+    "form-link": "Form Change"
+  }
+}

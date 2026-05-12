@@ -3,128 +3,94 @@ const path = require('node:path')
 const { parse } = require('csv-parse/sync')
 
 const RAW_DIR = path.join(process.cwd(), 'data/csv')
-const GRAPH_OUTPUT_PATH = path.join(process.cwd(), 'public/graph-data.json')
-const DETAILS_OUTPUT_PATH = path.join(process.cwd(), 'public/node-details.json')
+
+const LANGUAGES = [
+  { id: '12', code: 'zh' }, // Simplified Chinese
+  { id: '9', code: 'en' },  // English
+  { id: '11', code: 'ja' }  // Japanese
+]
+
 const COLOR_MAP = {
-  1: '黑色',
-  2: '蓝色',
-  3: '褐色',
-  4: '灰色',
-  5: '绿色',
-  6: '粉红色',
-  7: '紫色',
-  8: '红色',
-  9: '白色',
-  10: '黄色',
+  1: 'black', 2: 'blue', 3: 'brown', 4: 'gray', 5: 'green', 6: 'pink', 7: 'purple', 8: 'red', 9: 'white', 10: 'yellow'
 }
+
 function readCsv(filename) {
   const content = fs.readFileSync(path.join(RAW_DIR, filename), 'utf8')
   return parse(content, { columns: true, skip_empty_lines: true, relax_quotes: true, relax_column_count: true })
 }
-function getLocalized(records, idField, id) {
+
+function getLocalized(records, idField, id, langId) {
   const matches = records.filter(r => r[idField] === id)
-  const zhHans = matches.find(r => r.local_language_id === '12')
-  const zhHant = matches.find(r => r.local_language_id === '4')
-  const en = matches.find(r => r.local_language_id === '9')
-  return zhHans?.name || zhHant?.name || en?.name || 'Unknown'
+  const langMatch = matches.find(r => r.local_language_id === langId)
+  if (langMatch) return langMatch.name
+  
+  // Fallback to English (9) if requested language not found
+  const enMatch = matches.find(r => r.local_language_id === '9')
+  return enMatch?.name || 'Unknown'
 }
-const typeMap = {
-  normal: '一般',
-  fire: '火',
-  water: '水',
-  grass: '草',
-  electric: '电',
-  ice: '冰',
-  fighting: '格斗',
-  poison: '毒',
-  ground: '地面',
-  flying: '飞行',
-  psychic: '超能力',
-  bug: '虫',
-  rock: '岩石',
-  ghost: '幽灵',
-  dragon: '龙',
-  dark: '恶',
-  steel: '钢',
-  fairy: '妖精',
-  stellar: '星晶',
-  unknown: '未知',
-}
-function buildConditionsSummary(edge, triggers) {
+
+function buildConditionsSummary(edge, triggers, langId) {
   const parts = []
-  if (edge.evolution_trigger_id) {
-    const triggerName = getLocalized(triggers, 'evolution_trigger_id', edge.evolution_trigger_id)
-    parts.push(`方式: ${triggerName}`)
+  const labels = {
+    '12': { trigger: '方式', level: '等级', item: '道具', happy: '亲密度', beauty: '美丽度', affect: '友好度', time: '时段', base: '基础进化关系' },
+    '9': { trigger: 'Method', level: 'Level', item: 'Item', happy: 'Happiness', beauty: 'Beauty', affect: 'Affection', time: 'Time', base: 'Base Evolution' },
+    '11': { trigger: '方法', level: 'レベル', item: '道具', happy: 'なつき度', beauty: 'うつくしさ', affect: 'なかよし度', time: '時間帯', base: '基本進化' }
   }
-  if (edge.minimum_level)
-    parts.push(`等级: ${edge.minimum_level}`)
-  if (edge.trigger_item_id)
-    parts.push(`道具: ${edge.trigger_item_id}`) // Ideally we'd translate item_id
-  if (edge.minimum_happiness)
-    parts.push(`亲密度: ${edge.minimum_happiness}`)
-  if (edge.minimum_beauty)
-    parts.push(`美丽度: ${edge.minimum_beauty}`)
-  if (edge.minimum_affection)
-    parts.push(`友好度: ${edge.minimum_affection}`)
-  if (edge.time_of_day)
-    parts.push(`时段: ${edge.time_of_day}`)
-  return parts.join(' | ') || '基础进化关系'
+  const l = labels[langId] || labels['9']
+
+  if (edge.evolution_trigger_id) {
+    const triggerName = getLocalized(triggers, 'evolution_trigger_id', edge.evolution_trigger_id, langId)
+    parts.push(`${l.trigger}: ${triggerName}`)
+  }
+  if (edge.minimum_level) parts.push(`${l.level}: ${edge.minimum_level}`)
+  if (edge.trigger_item_id) parts.push(`${l.item}: ${edge.trigger_item_id}`)
+  if (edge.minimum_happiness) parts.push(`${l.happy}: ${edge.minimum_happiness}`)
+  if (edge.minimum_beauty) parts.push(`${l.beauty}: ${edge.minimum_beauty}`)
+  if (edge.minimum_affection) parts.push(`${l.affect}: ${edge.minimum_affection}`)
+  if (edge.time_of_day) parts.push(`${l.time}: ${edge.time_of_day}`)
+  
+  return parts.join(' | ') || l.base
 }
-function main() {
-  console.log('Reading CSV files...')
-  const pokemonRaw = readCsv('pokemon.csv')
-  const speciesRaw = readCsv('pokemon_species.csv')
-  const speciesNames = readCsv('pokemon_species_names.csv')
-  const pokemonTypes = readCsv('pokemon_types.csv')
-  const typesRaw = readCsv('types.csv')
-  const typeNames = readCsv('type_names.csv')
-  const statsRaw = readCsv('pokemon_stats.csv')
-  const evoRaw = readCsv('pokemon_evolution.csv')
-  const triggerProse = readCsv('evolution_trigger_prose.csv')
-  const formsRaw = readCsv('pokemon_forms.csv')
-  const formNamesRaw = readCsv('pokemon_form_names.csv')
-  const abilitiesRaw = readCsv('abilities.csv')
-  const abilityNamesRaw = readCsv('ability_names.csv')
-  const abilityProseRaw = readCsv('ability_prose.csv')
-  const pokemonAbilitiesRaw = readCsv('pokemon_abilities.csv')
-  const movesRaw = readCsv('moves.csv')
-  const moveNamesRaw = readCsv('move_names.csv')
-  const pokemonMovesRaw = readCsv('pokemon_moves.csv')
+
+function processLanguage(lang, rawData) {
+  console.log(`Processing language: ${lang.code}...`)
+  const {
+    pokemonRaw, speciesRaw, speciesNames, pokemonTypes, typesRaw, typeNames,
+    statsRaw, evoRaw, triggerProse, formsRaw, formNamesRaw, abilitiesRaw,
+    abilityNamesRaw, abilityProseRaw, pokemonAbilitiesRaw, movesRaw, moveNamesRaw,
+    pokemonMovesRaw
+  } = rawData
+
   const nodes = []
   const links = []
+
   // 1. Types
   const typeDict = new Map()
   typesRaw.forEach((t) => {
     const tId = t.id
-    const tName = typeMap[t.identifier] || getLocalized(typeNames, 'type_id', tId)
+    const tName = getLocalized(typeNames, 'type_id', tId, lang.id)
     const tSlug = t.identifier
     const tNodeId = `type-${tSlug}`
     typeDict.set(tId, { id: tNodeId, name: tName, slug: tSlug })
-    nodes.push({
-      i: tNodeId,
-      n: tName,
-      v: 50,
-      g: tName,
-      it: true,
-    })
+    nodes.push({ i: tNodeId, n: tName, v: 50, g: tSlug, it: true })
   })
+
   // 2. Pokemon stats
   const pokemonBst = new Map()
   statsRaw.forEach((s) => {
     const pid = s.pokemon_id
     pokemonBst.set(pid, (pokemonBst.get(pid) || 0) + Number(s.base_stat))
   })
+
   // 3. Pokemon types
   const pkmTypes = new Map()
   pokemonTypes.forEach((pt) => {
     const pid = pt.pokemon_id
-    if (!pkmTypes.has(pid))
-      pkmTypes.set(pid, [])
+    if (!pkmTypes.has(pid)) pkmTypes.set(pid, [])
     const tInfo = typeDict.get(pt.type_id)
-    if (tInfo) {
-      pkmTypes.get(pid).push(tInfo)
-    }
+    if (tInfo) pkmTypes.get(pid).push(tInfo)
   })
+
   // 4. Species mapping
   const speciesInfo = new Map()
   speciesRaw.forEach((sp) => {
@@ -135,56 +101,45 @@ function main() {
       color_id: sp.color_id,
     })
   })
-  // 5. Form naming mapping
+
+  // 5. Form naming
   const pokemonToFormId = new Map()
   formsRaw.forEach((f) => {
-    if (f.is_default === '1') {
-      pokemonToFormId.set(f.pokemon_id, f.id)
-    }
+    if (f.is_default === '1') pokemonToFormId.set(f.pokemon_id, f.id)
   })
+
   // 6. Abilities
   const abilityDict = new Map()
   const usedAbilityIds = new Set()
   pokemonAbilitiesRaw.forEach(pa => usedAbilityIds.add(pa.ability_id))
   abilitiesRaw.forEach((a) => {
-    if (!usedAbilityIds.has(a.id))
-      return
+    if (!usedAbilityIds.has(a.id)) return
     const aId = a.id
-    const aName = getLocalized(abilityNamesRaw, 'ability_id', aId)
-    // Get description
+    const aName = getLocalized(abilityNamesRaw, 'ability_id', aId, lang.id)
     const proseMatches = abilityProseRaw.filter(r => r.ability_id === aId)
-    const zhProse = proseMatches.find(r => r.local_language_id === '12')
-    const enProse = proseMatches.find(r => r.local_language_id === '9')
-    const description = zhProse?.short_effect || enProse?.short_effect || ''
+    const localProse = proseMatches.find(r => r.local_language_id === lang.id) || proseMatches.find(r => r.local_language_id === '9')
+    const description = localProse?.short_effect || ''
     const aNodeId = `ability-${aId}`
     abilityDict.set(aId, { id: aNodeId, name: aName, description })
-    nodes.push({
-      i: aNodeId,
-      n: aName,
-      v: 40,
-      g: '特性',
-      ia: true,
-    })
+    nodes.push({ i: aNodeId, n: aName, v: 40, g: lang.code === 'zh' ? '特性' : (lang.code === 'ja' ? '特性' : 'Ability'), ia: true })
   })
+
   // 7. Pokemon abilities mapping
   const pkmAbilities = new Map()
   pokemonAbilitiesRaw.forEach((pa) => {
     const pid = pa.pokemon_id
-    if (!pkmAbilities.has(pid))
-      pkmAbilities.set(pid, [])
+    if (!pkmAbilities.has(pid)) pkmAbilities.set(pid, [])
     const aInfo = abilityDict.get(pa.ability_id)
     if (aInfo) {
-      pkmAbilities.get(pid).push({
-        ...aInfo,
-        isHidden: pa.is_hidden === '1',
-      })
+      pkmAbilities.get(pid).push({ ...aInfo, isHidden: pa.is_hidden === '1' })
     }
   })
-  // 8. Moves mapping
+
+  // 8. Moves
   const moveDict = new Map()
   movesRaw.forEach((m) => {
     const mId = m.id
-    const mName = getLocalized(moveNamesRaw, 'move_id', mId)
+    const mName = getLocalized(moveNamesRaw, 'move_id', mId, lang.id)
     moveDict.set(mId, {
       id: mId,
       name: mName,
@@ -195,80 +150,59 @@ function main() {
       damage_class_id: m.damage_class_id,
     })
   })
-  // 9. Pokemon moves mapping (Filter for Gen 9 - version_group_id 25)
+
+  // 9. Pokemon moves mapping
   const pkmMoves = new Map()
   const usedMoveIds = new Set()
   pokemonMovesRaw.forEach((pm) => {
-    // Scan ALL versions to find any possible connection
     const pid = pm.pokemon_id
-    if (!pkmMoves.has(pid))
-      pkmMoves.set(pid, [])
+    if (!pkmMoves.has(pid)) pkmMoves.set(pid, [])
     const mInfo = moveDict.get(pm.move_id)
-    if (mInfo && pkmMoves.get(pid).length < 64) { // Increased limit significantly
-      pkmMoves.get(pid).push({
-        ...mInfo,
-        level: Number(pm.level),
-        method: pm.pokemon_move_method_id,
-      })
+    if (mInfo && pkmMoves.get(pid).length < 64) {
+      pkmMoves.get(pid).push({ ...mInfo, level: Number(pm.level), method: pm.pokemon_move_method_id })
       usedMoveIds.add(pm.move_id)
     }
   })
 
-  // 9.5 Add moves to nodes only if they are used
+  // 9.5 Move nodes
   moveDict.forEach((mInfo, mId) => {
-    if (!usedMoveIds.has(mId))
-      return
-    nodes.push({
-      i: `move-${mId}`,
-      n: mInfo.name,
-      v: 35,
-      g: '招式',
-      im: true,
-    })
+    if (!usedMoveIds.has(mId)) return
+    nodes.push({ i: `move-${mId}`, n: mInfo.name, v: 35, g: lang.code === 'zh' ? '招式' : (lang.code === 'ja' ? 'わざ' : 'Move'), im: true })
   })
+
   // 10. Pokemon & species
   const speciesToDefaultPokemon = new Map()
-  // First pass: identify default pokemon for each species
   pokemonRaw.forEach((p) => {
-    if (p.is_default === '1') {
-      speciesToDefaultPokemon.set(p.species_id, `pokemon-${p.id}`)
-    }
+    if (p.is_default === '1') speciesToDefaultPokemon.set(p.species_id, `pokemon-${p.id}`)
   })
-  console.log(`Processing ${pokemonRaw.length} pokemon forms...`)
+
   pokemonRaw.forEach((p) => {
     const pId = p.id
     const spId = p.species_id
     const sInfo = speciesInfo.get(spId)
-    if (!sInfo)
-      return
-    const speciesBaseName = getLocalized(speciesNames, 'pokemon_species_id', spId) || p.identifier
+    if (!sInfo) return
+    
+    const speciesBaseName = getLocalized(speciesNames, 'pokemon_species_id', spId, lang.id) || p.identifier
     let fullName = speciesBaseName
-    // If it's a special form, try to get the form name
     if (p.is_default !== '1') {
       const formId = pokemonToFormId.get(pId)
       const sRaw = speciesRaw.find(s => s.id === spId)
       const speciesIdentifier = sRaw?.identifier || ''
       if (formId) {
-        const formName = getLocalized(formNamesRaw, 'pokemon_form_id', formId)
+        const formName = getLocalized(formNamesRaw, 'pokemon_form_id', formId, lang.id)
         if (formName && formName !== 'Unknown' && !fullName.includes(formName)) {
           fullName = `${speciesBaseName}-${formName}`
-        }
-        else {
-          // Fallback to identifier parts
-          let formPart = p.identifier
-          if (speciesIdentifier) {
-            formPart = formPart.replace(speciesIdentifier.toLowerCase(), '')
-          }
-          formPart = formPart.replace(/^-/, '').replace(/-$/, '')
-          if (formPart) {
-            fullName = `${speciesBaseName}-${formPart}`
-          }
+        } else {
+          let formPart = p.identifier.replace(speciesIdentifier.toLowerCase(), '').replace(/^-/, '').replace(/-$/, '')
+          if (formPart) fullName = `${speciesBaseName}-${formPart}`
         }
       }
     }
+
     const bst = pokemonBst.get(pId) || 300
     const pTypes = pkmTypes.get(pId) || []
-    const primaryType = pTypes[0]?.name || '未知'
+    const primaryType = pTypes[0]?.slug || 'unknown'
+    
     nodes.push({
       i: `pokemon-${pId}`,
       n: fullName,
@@ -277,138 +211,70 @@ function main() {
       s: pId,
       c: COLOR_MAP[Number(sInfo.color_id)] || '',
     })
-    // Add type links
-    pTypes.forEach((t) => {
-      links.push({
-        i: `t-${pId}-${t.slug}`,
-        s: `pokemon-${pId}`,
-        t: t.id,
-        ty: 'type-link',
-      })
-    })
-    // Add ability links
-    const pAbilities = pkmAbilities.get(pId) || []
-    pAbilities.forEach((a) => {
-      links.push({
-        i: `a-${pId}-${a.id}`,
-        s: `pokemon-${pId}`,
-        t: a.id,
-        ty: 'ability-link',
-      })
-    })
-    // Add move links (top 32 moves to keep performance balanced but coverage high)
-    const pMoves = pkmMoves.get(pId) || []
-    pMoves.slice(0, 32).forEach((m) => {
-      links.push({
-        i: `m-${pId}-${m.id}`,
-        s: `pokemon-${pId}`,
-        t: `move-${m.id}`,
-        ty: 'move-link',
-      })
-    })
-    // Link special forms to their base form
+
+    pTypes.forEach(t => links.push({ i: `t-${pId}-${t.slug}`, s: `pokemon-${pId}`, t: t.id, ty: 'type-link' }))
+    const pAbilitiesList = pkmAbilities.get(pId) || []
+    pAbilitiesList.forEach(a => links.push({ i: `a-${pId}-${a.id}`, s: `pokemon-${pId}`, t: a.id, ty: 'ability-link' }))
+    const pMovesList = pkmMoves.get(pId) || []
+    pMovesList.slice(0, 32).forEach(m => links.push({ i: `m-${pId}-${m.id}`, s: `pokemon-${pId}`, t: `move-${m.id}`, ty: 'move-link' }))
+    
     const defaultPkmId = speciesToDefaultPokemon.get(spId)
     if (defaultPkmId && defaultPkmId !== `pokemon-${pId}`) {
-      links.push({
-        i: `f-${defaultPkmId}-${pId}`,
-        s: defaultPkmId,
-        t: `pokemon-${pId}`,
-        ty: 'form-link',
-      })
+      links.push({ i: `f-${defaultPkmId}-${pId}`, s: defaultPkmId, t: `pokemon-${pId}`, ty: 'form-link' })
     }
   })
-  // 7. Evolutions
+
+  // Evolutions
   evoRaw.forEach((evo) => {
     const toSpId = evo.evolved_species_id
     const toSpInfo = speciesInfo.get(toSpId)
-    if (!toSpInfo || !toSpInfo.evolvesFrom)
-      return
+    if (!toSpInfo || !toSpInfo.evolvesFrom) return
     const fromSpId = toSpInfo.evolvesFrom
     const fromPkmId = speciesToDefaultPokemon.get(fromSpId)
     const toPkmId = speciesToDefaultPokemon.get(toSpId)
-    if (!fromPkmId || !toPkmId)
-      return
-    const summary = buildConditionsSummary(evo, triggerProse)
-    const triggerName = evo.evolution_trigger_id ? getLocalized(triggerProse, 'evolution_trigger_id', evo.evolution_trigger_id) : 'unknown'
-    links.push({
-      i: `e-${evo.id}`,
-      s: fromPkmId,
-      t: toPkmId,
-      ty: 'evolution',
-    })
+    if (!fromPkmId || !toPkmId) return
+    links.push({ i: `e-${evo.id}`, s: fromPkmId, t: toPkmId, ty: 'evolution' })
   })
-  // 9. Build Details Map
-  console.log('Building details map...')
+
+  // Details
   const details = {}
-  // Type details
-  typesRaw.forEach((t) => {
-    const tId = t.id
-    const tInfo = typeDict.get(tId)
-    if (tInfo) {
-      details[tInfo.id] = {
-        name: tInfo.name,
-        type: 'type',
-      }
+  typesRaw.forEach(t => {
+    const tInfo = typeDict.get(t.id)
+    if (tInfo) details[tInfo.id] = { name: tInfo.name, type: 'type' }
+  })
+  abilityDict.forEach((aInfo, aId) => {
+    details[aInfo.id] = { name: aInfo.name, description: aInfo.description, type: 'ability' }
+  })
+  moveDict.forEach((mInfo, mId) => {
+    details[`move-${mId}`] = { 
+      name: mInfo.name, type: 'move', power: mInfo.power, pp: mInfo.pp, 
+      accuracy: mInfo.accuracy, damage_class_id: mInfo.damage_class_id 
     }
   })
-  // Ability details
-  abilitiesRaw.forEach((a) => {
-    const aInfo = abilityDict.get(a.id)
-    if (aInfo) {
-      details[aInfo.id] = {
-        name: aInfo.name,
-        description: aInfo.description,
-        type: 'ability',
-      }
-    }
-  })
-  // Move details
-  movesRaw.forEach((m) => {
-    const mInfo = moveDict.get(m.id)
-    if (mInfo) {
-      details[`move-${m.id}`] = {
-        name: mInfo.name,
-        type: 'move',
-        power: mInfo.power,
-        pp: mInfo.pp,
-        accuracy: mInfo.accuracy,
-        damage_class_id: mInfo.damage_class_id,
-      }
-    }
-  })
-  // Pokemon details
-  pokemonRaw.forEach((p) => {
+  pokemonRaw.forEach(p => {
     const pId = p.id
-    const spId = p.species_id
-    const sInfo = speciesInfo.get(spId)
-    if (!sInfo)
-      return
-    const pTypes = pkmTypes.get(pId) || []
-    // We need to re-calculate name logic here or store it earlier
-    // To keep it simple for this script, let's just use the nodes list we built
+    const sInfo = speciesInfo.get(p.species_id)
+    if (!sInfo) return
     const node = nodes.find(n => n.i === `pokemon-${pId}`)
     details[`pokemon-${pId}`] = {
       name: node?.n || p.identifier,
-      types: pTypes.map(t => t.name),
+      types: pkmTypes.get(pId).map(t => t.name),
       generation: sInfo.generation,
-      pokedexNumber: String(spId).padStart(4, '0'),
-      color: COLOR_MAP[Number(sInfo.color_id)] || '未知',
+      pokedexNumber: String(p.species_id).padStart(4, '0'),
+      color: COLOR_MAP[Number(sInfo.color_id)] || '',
       type: 'pokemon',
       abilities: pkmAbilities.get(pId) || [],
-      moves: (pkmMoves.get(pId) || []).sort((a, b) => a.level - b.level),
+      moves: (pkmMoves.get(pId) || []).sort((a, b) => a.level - b.level)
     }
   })
-  // Link details
-  links.forEach((l) => {
-    // For evolution links, add trigger and label
+  links.forEach(l => {
     const evo = evoRaw.find(e => `e-${e.id}` === l.i)
     if (evo) {
       details[l.i] = {
-        trigger: evo.evolution_trigger_id ? getLocalized(triggerProse, 'evolution_trigger_id', evo.evolution_trigger_id) : 'unknown',
-        label: buildConditionsSummary(evo, triggerProse),
+        trigger: evo.evolution_trigger_id ? getLocalized(triggerProse, 'evolution_trigger_id', evo.evolution_trigger_id, lang.id) : 'unknown',
+        label: buildConditionsSummary(evo, triggerProse, lang.id),
       }
     }
-    // For ability links, add isHidden
     const pkmIdMatch = l.i.match(/^a-(\d+)-ability-(\d+)$/)
     if (pkmIdMatch) {
       const pId = pkmIdMatch[1]
@@ -417,28 +283,41 @@ function main() {
       if (pa) {
         details[l.i] = {
           isHidden: pa.is_hidden === '1',
-          label: pa.is_hidden === '1' ? '隐藏特性' : '普通特性',
+          label: pa.is_hidden === '1' ? (lang.code === 'zh' ? '隐藏特性' : (lang.code === 'ja' ? '隠れ特性' : 'Hidden Ability')) : (lang.code === 'zh' ? '普通特性' : (lang.code === 'ja' ? '通常特性' : 'Normal Ability')),
         }
       }
     }
   })
-  // Write output
-  const output = {
-    metadata: {
-      source: 'local CSV',
-      generatedAt: new Date().toISOString(),
-      nodes: nodes.length,
-      links: links.length,
-      typeCount: typeDict.size,
-      abilityCount: abilityDict.size,
-      moveCount: moveDict.size,
-      evolutionChainCount: new Set(Array.from(speciesInfo.values()).map(s => s.evoChainId)).size,
-    },
-    nodes,
-    links,
-  }
-  fs.writeFileSync(GRAPH_OUTPUT_PATH, JSON.stringify(output)) // Minified
-  fs.writeFileSync(DETAILS_OUTPUT_PATH, JSON.stringify(details))
-  console.log(`Generated minified graph (${nodes.length} nodes) and details map to public/`)
+
+  fs.writeFileSync(path.join(process.cwd(), `public/graph-data-${lang.code}.json`), JSON.stringify({ metadata: { lang: lang.code }, nodes, links }))
+  fs.writeFileSync(path.join(process.cwd(), `public/node-details-${lang.code}.json`), JSON.stringify(details))
 }
+
+function main() {
+  console.log('Reading CSV files...')
+  const rawData = {
+    pokemonRaw: readCsv('pokemon.csv'),
+    speciesRaw: readCsv('pokemon_species.csv'),
+    speciesNames: readCsv('pokemon_species_names.csv'),
+    pokemonTypes: readCsv('pokemon_types.csv'),
+    typesRaw: readCsv('types.csv'),
+    typeNames: readCsv('type_names.csv'),
+    statsRaw: readCsv('pokemon_stats.csv'),
+    evoRaw: readCsv('pokemon_evolution.csv'),
+    triggerProse: readCsv('evolution_trigger_prose.csv'),
+    formsRaw: readCsv('pokemon_forms.csv'),
+    formNamesRaw: readCsv('pokemon_form_names.csv'),
+    abilitiesRaw: readCsv('abilities.csv'),
+    abilityNamesRaw: readCsv('ability_names.csv'),
+    abilityProseRaw: readCsv('ability_prose.csv'),
+    pokemonAbilitiesRaw: readCsv('pokemon_abilities.csv'),
+    movesRaw: readCsv('moves.csv'),
+    moveNamesRaw: readCsv('move_names.csv'),
+    pokemonMovesRaw: readCsv('pokemon_moves.csv')
+  }
+
+  LANGUAGES.forEach(lang => processLanguage(lang, rawData))
+  console.log('All languages processed successfully.')
+}
+
 main()

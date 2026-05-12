@@ -1,0 +1,69 @@
+{
+  "Common": {
+    "title": "ポケモンアトラス",
+    "searchPlaceholder": "ポケモン、タイプ、特性を検索...",
+    "noResults": "結果が見つかりません",
+    "all": "全部",
+    "types": "タイプ",
+    "evolutions": "進化",
+    "abilities": "特性",
+    "moves": "わざ",
+    "genFilter": "世代フィルター",
+    "relHierarchy": "関係階層",
+    "stats": {
+      "pokemon": "ポケモン",
+      "type": "タイプ",
+      "ability": "特性",
+      "move": "わざ",
+      "generation": "世代",
+      "genShort": "Gen",
+      "loading": "アトラスを初期化中..."
+    },
+    "relationLink": "関係リンク"
+  },
+  "Details": {
+    "focus": "このノードにフォーカス",
+    "pokedex": "全国図鑑",
+    "generation": "世代",
+    "typeNode": "タイプノード",
+    "abilityNode": "特性ノード",
+    "pokemonNode": "ポケモンノード",
+    "moveNode": "わざノード",
+    "relationLink": "関係リンク",
+    "phys": "物理",
+    "spec": "特殊",
+    "stat": "変化",
+    "stats": {
+      "types": "関連タイプ",
+      "evolutions": "進化ライン",
+      "abilities": "特性数",
+      "moves": "習得わざ",
+      "pkmCount": "このタイプのポケモン",
+      "unit": "個",
+      "unitPkm": "匹"
+    },
+    "abilities": "特性",
+    "moves": "習得できるわざ",
+    "hidden": "隠れ"
+  },
+  "Legend": {
+    "title": "図例",
+    "description": "ノードとリンクの定義。",
+    "typeRel": "所属タイプ",
+    "evoRel": "進化ライン",
+    "formRel": "フォルムチェンジ",
+    "abilityRel": "特性",
+    "moveRel": "習得わざ",
+    "pkmNode": "ポケモン",
+    "typeNode": "タイプ",
+    "abilityNode": "特性",
+    "moveNode": "わざ"
+  },
+  "LinkTypes": {
+    "evolution": "進化",
+    "type-link": "所属タイプ",
+    "ability-link": "特性",
+    "move-link": "習得わざ",
+    "form-link": "フォルムチェンジ"
+  }
+}

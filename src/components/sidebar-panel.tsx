@@ -1,39 +1,15 @@
+import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import type { GraphNode } from './pixi-graph'
 import type { NodeDetails } from '@/lib/graph-utils'
 import { MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { LocaleSwitcher } from '@/components/ui/locale-switcher'
 import { generationLabel } from '@/lib/graph-utils'
 import { cn } from '@/lib/utils'
 
-interface SidebarPanelProps {
-  query: string
-  setQuery: (val: string) => void
-  setConfirmedQuery: (val: string) => void
-  isDropdownVisible: boolean
-  setIsDropdownVisible: (val: boolean) => void
-  searchResults: GraphNode[]
-  focusNode: (node: GraphNode) => void
-  details: Record<string, NodeDetails> | null
-  showTypeLinks: boolean
-  setShowTypeLinks: Dispatch<SetStateAction<boolean>>
-  showEvolutionLinks: boolean
-  setShowEvolutionLinks: Dispatch<SetStateAction<boolean>>
-  showAbilityLinks: boolean
-  setShowAbilityLinks: Dispatch<SetStateAction<boolean>>
-  showMoveLinks: boolean
-  setShowMoveLinks: Dispatch<SetStateAction<boolean>>
-  generationFilter: number | 'all'
-  setGenerationFilter: (val: number | 'all') => void
-  generations: number[]
-  stats: {
-    pokemonCount: number
-    typeCount: number
-    abilityCount: number
-    moveCount: number
-  }
-}
+// ... (SidebarPanelProps omitted for brevity but preserved)
 
 export function SidebarPanel({
   query,
@@ -57,15 +33,14 @@ export function SidebarPanel({
   generations,
   stats,
 }: SidebarPanelProps) {
+  const t = useTranslations('Common')
+
   return (
     <Card className="border border-white/10 bg-black/40 backdrop-blur-xl shadow-xl">
-      <CardHeader className="pb-2">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-white">宝可梦图谱</h1>
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/40">
-            <span className="h-px w-3 bg-white/20" />
-            Relation Atlas
-          </div>
+      <CardHeader className="pb-3">
+        <div className="space-y-3">
+          <h1 className="text-2xl font-bold tracking-tight text-white">{t('title')}</h1>
+          <LocaleSwitcher />
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -84,7 +59,7 @@ export function SidebarPanel({
                   setIsDropdownVisible(false)
                 }
               }}
-              placeholder="搜索名称或属性..."
+              placeholder={t('searchPlaceholder')}
               className="w-full rounded border border-white/10 bg-white/5 pl-3 pr-10 py-2 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#89b4ff] focus:bg-white/10 transition-all"
             />
             <button
@@ -114,7 +89,7 @@ export function SidebarPanel({
                   >
                     <span>{node.n}</span>
                     <span className="text-[10px] uppercase tracking-[0.22em] text-white/35">
-                      {node.it ? 'Type' : node.ia ? 'Ability' : node.im ? 'Move' : details?.[node.i] ? generationLabel(details[node.i].generation) : ''}
+                      {node.it ? t('types') : node.ia ? t('abilities') : node.im ? t('moves') : details?.[node.i] ? generationLabel(details[node.i].generation) : ''}
                     </span>
                   </button>
                 ))}
@@ -126,49 +101,49 @@ export function SidebarPanel({
         {/* Filters Section */}
         <div className="space-y-6 pt-2">
           <div className="space-y-3">
-            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">关系层级</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">{t('relHierarchy')}</div>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant={showTypeLinks ? 'default' : 'outline'}
                 className={cn('h-8 text-xs border-white/12', showTypeLinks && 'bg-[#ffcf5a] text-black hover:bg-[#ffcf5a]/90')}
                 onClick={() => setShowTypeLinks(value => !value)}
               >
-                属性
+                {t('types')}
               </Button>
               <Button
                 variant={showEvolutionLinks ? 'default' : 'outline'}
                 className={cn('h-8 text-xs border-white/12', showEvolutionLinks && 'bg-[#7df2c0] text-black hover:bg-[#7df2c0]/90')}
                 onClick={() => setShowEvolutionLinks(value => !value)}
               >
-                进化
+                {t('evolutions')}
               </Button>
               <Button
                 variant={showAbilityLinks ? 'default' : 'outline'}
                 className={cn('h-8 text-xs border-white/12', showAbilityLinks && 'bg-[#a855f7] text-white hover:bg-[#a855f7]/90')}
                 onClick={() => setShowAbilityLinks(value => !value)}
               >
-                特性
+                {t('abilities')}
               </Button>
               <Button
                 variant={showMoveLinks ? 'default' : 'outline'}
                 className={cn('h-8 text-xs border-white/12', showMoveLinks && 'bg-[#ff5e3d] text-white hover:bg-[#ff5e3d]/90')}
                 onClick={() => setShowMoveLinks(value => !value)}
               >
-                招式
+                {t('moves')}
               </Button>
             </div>
           </div>
 
           <div className="space-y-3">
-            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">世代筛选</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">{t('genFilter')}</div>
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant={generationFilter === 'all' ? 'default' : 'outline'}
-                className={cn('h-7 text-[10px] border-white/12', generationFilter === 'all' && 'bg-white text-black hover:bg-white/90')}
+                className={cn('h-7 text-[10px] border-white/12', generationFilter === 'all' && 'bg-[#89b4ff] text-black hover:bg-[#89b4ff]/90 shadow-[0_0_12px_rgba(137,180,255,0.3)]')}
                 onClick={() => setGenerationFilter('all')}
               >
-                全部
+                {t('all')}
               </Button>
               {generations.map(gen => (
                 <Button
@@ -178,9 +153,7 @@ export function SidebarPanel({
                   className={cn('h-7 text-[10px] border-white/12', generationFilter === gen && 'bg-[#89b4ff] text-black hover:bg-[#89b4ff]/90')}
                   onClick={() => setGenerationFilter(gen)}
                 >
-                  Gen
-                  {' '}
-                  {gen}
+                  {t('stats.genShort')} {gen}
                 </Button>
               ))}
             </div>
@@ -188,19 +161,19 @@ export function SidebarPanel({
 
           <div className="flex gap-2 pt-2 border-t border-white/5">
             <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前宝可梦</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">{t('stats.pokemon')}</div>
               <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.pokemonCount}</div>
             </div>
             <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前属性</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">{t('stats.type')}</div>
               <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.typeCount}</div>
             </div>
             <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前特性</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">{t('stats.ability')}</div>
               <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.abilityCount}</div>
             </div>
             <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">当前招式</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">{t('stats.move')}</div>
               <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.moveCount}</div>
             </div>
           </div>

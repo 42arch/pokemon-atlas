@@ -1,0 +1,69 @@
+{
+  "Common": {
+    "title": "宝可梦图谱",
+    "searchPlaceholder": "搜索宝可梦、属性、特性...",
+    "noResults": "未找到匹配项",
+    "all": "全部",
+    "types": "属性",
+    "evolutions": "进化",
+    "abilities": "特性",
+    "moves": "招式",
+    "genFilter": "世代筛选",
+    "relHierarchy": "关系层级",
+    "stats": {
+      "pokemon": "宝可梦",
+      "type": "属性",
+      "ability": "特性",
+      "move": "招式",
+      "generation": "世代",
+      "genShort": "Gen",
+      "loading": "正在初始化图谱..."
+    },
+    "relationLink": "关系连线"
+  },
+  "Details": {
+    "focus": "仅显示此节点及其关联",
+    "pokedex": "全国图鉴",
+    "generation": "世代",
+    "typeNode": "属性节点",
+    "abilityNode": "特性节点",
+    "pokemonNode": "宝可梦节点",
+    "moveNode": "招式节点",
+    "relationLink": "关系连线",
+    "phys": "物理",
+    "spec": "特殊",
+    "stat": "变化",
+    "stats": {
+      "types": "关联属性",
+      "evolutions": "进化链",
+      "abilities": "拥有特性",
+      "moves": "习得招式",
+      "pkmCount": "该属性下的宝可梦",
+      "unit": "项",
+      "unitPkm": "只"
+    },
+    "abilities": "特性能力",
+    "moves": "可学招式",
+    "hidden": "隐藏"
+  },
+  "Legend": {
+    "title": "图例",
+    "description": "节点与连线的含义说明。",
+    "typeRel": "归属属性",
+    "evoRel": "进化投影",
+    "formRel": "形态转换",
+    "abilityRel": "拥有特性",
+    "moveRel": "习得招式",
+    "pkmNode": "宝可梦",
+    "typeNode": "属性",
+    "abilityNode": "特性",
+    "moveNode": "招式"
+  },
+  "LinkTypes": {
+    "evolution": "进化",
+    "type-link": "属性归属",
+    "ability-link": "拥有特性",
+    "move-link": "习得招式",
+    "form-link": "形态转换"
+  }
+}

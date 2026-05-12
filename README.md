@@ -1,4 +1,8 @@
-# Pokémon Graph
+<h1 align="center">Pokémon Atlas</h1>
+
+<p align="center">
+  <img src="screenshot.png" alt="Pokémon Atlas Screenshot" width="800">
+</p>
 
 [中文文档](README.zh-CN.md)
 

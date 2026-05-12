@@ -3,9 +3,7 @@
 import * as d3 from 'd3'
 import * as PIXI from 'pixi.js'
 import { useEffect, useRef, useState } from 'react'
-import { POKEMON_COLORS, SPRITE_URL_PREFIX, TYPE_COLORS } from '@/lib/constants'
-
-const TYPES_LIST = ['一般', '格斗', '飞行', '毒', '地面', '岩石', '虫', '幽灵', '钢', '火', '水', '草', '电', '超能力', '冰', '龙', '恶', '妖精']
+import { POKEMON_COLORS, SPRITE_URL_PREFIX, TYPE_COLORS, TYPES_LIST } from '@/lib/constants'
 
 const TEXT_VISIBILITY_THRESHOLD = 0.4
 
@@ -281,7 +279,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       ...n,
       radius: n.it ? 18 : (n.ia ? 15 : (n.im ? 10 : Math.max(12, n.v * 1.5))),
       color: n.it
-        ? (TYPE_COLORS[n.n] || '#89b4ff')
+        ? (TYPE_COLORS[n.g] || '#89b4ff')
         : (n.ia ? '#a855f7' : (n.im ? '#ff5e3d' : (POKEMON_COLORS[n.c || ''] || TYPE_COLORS[n.g] || '#475569'))),
     }))
     const nodeMap = new Map(nodes.map(n => [n.i, n]))

@@ -2,11 +2,13 @@
 
 import type { GraphLink, GraphNode } from './pixi-graph'
 import type { NodeDetails } from '@/lib/graph-utils'
+import { useTranslations } from 'next-intl'
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { getEndpointId, getLinkId } from '@/lib/graph-utils'
 import { DetailsPanel } from './details-panel'
 import { LegendPanel } from './legend-panel'
 import PixiGraph from './pixi-graph'
+import { GENERATIONS_LIST } from '@/lib/constants'
 import { SidebarPanel } from './sidebar-panel'
 
 interface GraphPayload {
@@ -23,7 +25,7 @@ interface GraphPayload {
   links: GraphLink[]
 }
 
-export default function PokemonGraph() {
+export default function PokemonGraph({ locale = 'zh' }: { locale?: string }) {
   const [payload, setPayload] = useState<GraphPayload | null>(null)
   const [details, setDetails] = useState<Record<string, NodeDetails> | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
@@ -37,11 +39,12 @@ export default function PokemonGraph() {
   const [generationFilter, setGenerationFilter] = useState<'all' | number>('all')
   const [isDropdownVisible, setIsDropdownVisible] = useState(false)
   const deferredQuery = useDeferredValue(confirmedQuery)
+  const t = useTranslations('Common')
 
   useEffect(() => {
     let active = true
 
-    fetch('/graph-data.json')
+    fetch(`/graph-data-${locale}.json`)
       .then(res => res.json())
       .then((data: GraphPayload) => {
         if (!active)
@@ -55,9 +58,10 @@ export default function PokemonGraph() {
         console.error('Failed to load graph data', error)
       })
 
-    fetch('/node-details.json')
+    fetch(`/node-details-${locale}.json`)
       .then(res => res.json())
       .then((data: Record<string, NodeDetails>) => {
+        if (!active) return
         setDetails(data)
       })
       .catch(err => console.error('Failed to load node details', err))
@@ -65,24 +69,13 @@ export default function PokemonGraph() {
     return () => {
       active = false
     }
-  }, [])
+  }, [locale])
 
   const baseNodeMap = useMemo(() => {
     return new Map(payload?.nodes.map(node => [node.i, node]) || [])
   }, [payload])
 
-  const generations = useMemo(() => {
-    const values = new Set<number>()
-    payload?.nodes.forEach((node) => {
-      // Use details for generation if available, but for performance we might want it in graph-data
-      // Let's assume for now we might need to keep it or just skip gen filtering if not in graph-data
-      // Actually, my script removed it from nodes. Let's check.
-      const d = details?.[node.i]
-      if (!node.it && d?.generation)
-        values.add(d.generation)
-    })
-    return Array.from(values).sort((a, b) => a - b)
-  }, [payload, details])
+  const generations = GENERATIONS_LIST
 
   const filteredGraph = useMemo(() => {
     if (!payload) {
@@ -320,7 +313,16 @@ export default function PokemonGraph() {
 
   const infoNode = selectedNode
   const infoLink = selectedLink
-  const emptyState = !payload
+
+  if (!payload) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#060816] text-white">
+        <div className="text-sm tracking-[0.22em] text-white/40 uppercase">
+          {t('stats.loading')}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#060816] text-white">
@@ -331,16 +333,7 @@ export default function PokemonGraph() {
       <main className="relative z-10 min-h-screen w-full overflow-hidden">
         {/* Full-screen Graph Scene */}
         <div className="absolute inset-0 z-0">
-          {emptyState
-            ? (
-                <div className="flex h-full items-center justify-center">
-                  <div className="border border-white/10 bg-black/45 px-6 py-4 text-sm text-white/70 backdrop-blur-xl pointer-events-auto">
-                    正在装载图谱数据...
-                  </div>
-                </div>
-              )
-            : (
-                <PixiGraph
+          <PixiGraph
                   nodes={filteredGraph.nodes as unknown as GraphNode[]}
                   links={filteredGraph.links as unknown as GraphLink[]}
                   selectedNodeId={selectedNodeId}
@@ -353,7 +346,6 @@ export default function PokemonGraph() {
                     setSelectedLinkId(link ? getLinkId(link as unknown as GraphLink) : null)
                   }}
                 />
-              )}
         </div>
 
         {/* Left Sidebar */}

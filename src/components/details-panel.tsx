@@ -1,10 +1,13 @@
+'use client'
+
+import { useTranslations, useLocale } from 'next-intl'
 import type { GraphLink, GraphNode } from './pixi-graph'
 import type { NodeDetails } from '@/lib/graph-utils'
-import { FingerprintIcon, LightningIcon, SparkleIcon, SwordIcon, TargetIcon } from '@phosphor-icons/react'
+import { FingerprintIcon, LightningIcon, SwordIcon, TargetIcon } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TYPE_COLORS } from '@/lib/constants'
-import { generationLabel, getEndpointId, getLinkId, getSpriteUrl } from '@/lib/graph-utils'
+import { TypeIcon, TypeTag } from '@/components/ui/type-tag'
+import { getEndpointId, getLinkId, getSpriteUrl } from '@/lib/graph-utils'
 import { cn } from '@/lib/utils'
 
 interface DetailsPanelProps {
@@ -28,6 +31,11 @@ export function DetailsPanel({
   onFocus,
   onSelectLink,
 }: DetailsPanelProps) {
+  const t = useTranslations('Details')
+  const tCommon = useTranslations('Common')
+  const tLink = useTranslations('LinkTypes')
+  const locale = useLocale()
+
   if (!infoNode && !infoLink)
     return null
 
@@ -42,14 +50,13 @@ export function DetailsPanel({
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 -ml-2"
-                  title="仅显示此节点及其关联"
+                  title={t('focus')}
                   onClick={() => onFocus(infoNode)}
                 >
                   <TargetIcon className="size-4" />
                 </Button>
               )}
-              <SparkleIcon className="size-4 text-[#ff91b5]" weight="fill" />
-              {infoNode ? (infoNode.it ? 'Type Node' : (infoNode.ia ? 'Ability Node' : 'Pokemon Node')) : 'Relation Link'}
+              {infoNode ? (infoNode.it ? t('typeNode') : (infoNode.ia ? t('abilityNode') : t('pokemonNode'))) : t('relationLink')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -64,15 +71,18 @@ export function DetailsPanel({
                     />
                   )}
                   <div className="space-y-2">
-                    <div className="text-2xl font-semibold text-white">{infoNode.n}</div>
+                    <div className="flex items-center gap-3 text-2xl font-semibold text-white">
+                      {infoNode.it && <TypeIcon name={infoNode.n} size={28} />}
+                      {infoNode.n}
+                    </div>
                     {details?.[infoNode.i] && (
                       <div className="text-sm text-white/55">
-                        {details[infoNode.i].pokedexNumber && `#${details[infoNode.i].pokedexNumber}`}
-                        {details[infoNode.i].generation && ` · ${generationLabel(details[infoNode.i].generation)}`}
+                        {details[infoNode.i].pokedexNumber && `${t('pokedex')} #${details[infoNode.i].pokedexNumber}`}
+                        {details[infoNode.i].generation && ` · ${t('generation')} ${details[infoNode.i].generation}`}
                       </div>
                     )}
                     {infoNode.ia && (
-                      <div className="text-sm text-[#a855f7]">特性节点</div>
+                      <div className="text-sm text-[#a855f7]">{t('abilityNode')}</div>
                     )}
                   </div>
                 </div>
@@ -86,46 +96,45 @@ export function DetailsPanel({
                 {details?.[infoNode.i]?.types && (
                   <div className="flex flex-wrap gap-2">
                     {details[infoNode.i].types?.map(type => (
-                      <span
-                        key={type}
-                        className="border px-2 py-1 text-xs"
-                        style={{
-                          borderColor: `${TYPE_COLORS[type] || '#fff'}66`,
-                          color: TYPE_COLORS[type] || '#fff',
-                          backgroundColor: `${TYPE_COLORS[type] || '#fff'}10`,
-                        }}
-                      >
-                        {type}
-                      </span>
+                      <TypeTag key={type} name={type} />
                     ))}
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: '关联属性', count: details?.[infoNode.i]?.types?.length || 0, color: '#89b4ff', icon: 'Type' },
-                    { label: '进化链', count: selectedNodeLinks.filter(l => l.ty === 'evolution').length, color: '#7df2c0', icon: 'Evo' },
-                    { label: '拥有特性', count: details?.[infoNode.i]?.abilities?.length || 0, color: '#a855f7', icon: 'Abi' },
-                    { label: '习得招式', count: details?.[infoNode.i]?.moves?.length || 0, color: '#ff5e3d', icon: 'Mov' },
-                  ].map((stat) => (
-                    <div key={stat.label} className="relative overflow-hidden border border-white/10 bg-white/4 p-3 transition hover:bg-white/8">
-                      <div className="text-[9px] uppercase tracking-[0.15em] text-white/30">{stat.label}</div>
-                      <div className="mt-1 flex items-baseline gap-1">
-                        <div className="text-xl font-bold font-mono" style={{ color: stat.color }}>{stat.count}</div>
-                        <div className="text-[10px] text-white/20">项</div>
+                {infoNode.it ? (
+                  <div className="border border-white/10 bg-white/4 p-3 transition hover:bg-white/8">
+                    <div className="text-[9px] uppercase tracking-[0.15em] text-white/30">{t('stats.pkmCount')}</div>
+                    <div className="mt-1 flex items-baseline gap-1">
+                      <div className="text-xl font-bold font-mono text-[#89b4ff]">
+                        {adjacency.relationMap.get(infoNode.i)?.size || 0}
                       </div>
-                      <div className="absolute -right-1 -top-1 opacity-[0.03] text-4xl font-black italic select-none" style={{ color: stat.color }}>
-                        {stat.icon}
-                      </div>
+                      <div className="text-[10px] text-white/20">{t('stats.unitPkm')}</div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: t('stats.types'), count: details?.[infoNode.i]?.types?.length || 0, color: '#89b4ff' },
+                      { label: t('stats.evolutions'), count: selectedNodeLinks.filter(l => l.ty === 'evolution').length, color: '#7df2c0' },
+                      { label: t('stats.abilities'), count: details?.[infoNode.i]?.abilities?.length || 0, color: '#a855f7' },
+                      { label: t('stats.moves'), count: details?.[infoNode.i]?.moves?.length || 0, color: '#ff5e3d' },
+                    ].map((stat) => (
+                      <div key={stat.label} className="border border-white/10 bg-white/4 p-2.5 transition hover:bg-white/8">
+                        <div className="text-[9px] uppercase tracking-[0.15em] text-white/30">{stat.label}</div>
+                        <div className="mt-0.5 flex items-baseline gap-1">
+                          <div className="text-lg font-bold font-mono" style={{ color: stat.color }}>{stat.count}</div>
+                          <div className="text-[9px] text-white/20">{t('stats.unit')}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {infoNode && (details?.[infoNode.i]?.abilities?.length ?? 0) > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-white/38">
                       <FingerprintIcon className="size-3.5 text-[#a855f7]" />
-                      特性能力
+                      {t('abilities')}
                     </div>
                     <div className="space-y-2">
                       {details?.[infoNode.i]?.abilities?.map((ability) => (
@@ -137,12 +146,12 @@ export function DetailsPanel({
                             <span className="text-sm font-semibold text-white">{ability.name}</span>
                             {ability.isHidden && (
                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#a855f7]/20 text-[#a855f7] border border-[#a855f7]/30 uppercase font-bold tracking-wider">
-                                Hidden
+                                {t('hidden')}
                               </span>
                             )}
                           </div>
                           <p className="text-xs text-white/50 leading-relaxed italic">
-                            {ability.description || '暂无详细描述'}
+                            {ability.description || '...'}
                           </p>
                         </div>
                       ))}
@@ -154,7 +163,7 @@ export function DetailsPanel({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-white/38">
                       <SwordIcon className="size-3.5 text-[#ff5e3d]" />
-                      可学招式 (Gen 9)
+                      {t('moves')}
                     </div>
                     <div className="max-h-48 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-white/10">
                       {details?.[infoNode.i]?.moves?.map((move, idx) => (
@@ -166,7 +175,7 @@ export function DetailsPanel({
                             </div>
                             <div className="flex items-center gap-1.5">
                               <span className="text-[8px] px-1 bg-white/5 text-white/40 uppercase tracking-tighter">
-                                {move.damage_class_id === '2' ? '物理' : move.damage_class_id === '3' ? '特殊' : '变化'}
+                                {move.damage_class_id === '2' ? t('phys') : move.damage_class_id === '3' ? t('spec') : t('stat')}
                               </span>
                               <span className="text-[9px] text-white/20 font-mono">
                                 {move.power && move.power !== '0' ? `ATK:${move.power}` : ''} 
@@ -186,7 +195,7 @@ export function DetailsPanel({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-white/38">
                     <LightningIcon className="size-3.5 text-[#ffcf5a]" />
-                    相关关系
+                    {t('relationLink')}
                   </div>
                   <div className="max-h-[340px] space-y-2 overflow-auto pr-1">
                     {selectedNodeLinks.slice(0, 16).map((link) => {
@@ -202,23 +211,21 @@ export function DetailsPanel({
                         <button
                           key={getLinkId(link)}
                           type="button"
-                          className="w-full border border-white/10 bg-white/4 p-3 text-left transition hover:bg-white/8"
+                          className="w-full border border-white/10 bg-white/4 p-2.5 text-left transition hover:bg-white/8 group"
                           onClick={() => onSelectLink(getLinkId(link))}
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm text-white">
+                            <span className="text-[13px] text-white/90 group-hover:text-white transition-colors">
                               {sourceNode.n}
-                              {' '}
-                              →
-                              {' '}
+                              <span className="text-white/20 mx-1">→</span>
                               {targetNode.n}
                             </span>
-                            <span className="text-[10px] uppercase tracking-[0.2em] text-white/35">
-                              {link.ty === 'evolution' ? 'evolution' : (link.ty === 'ability-link' ? 'ability' : 'type')}
+                            <span className="text-[9px] uppercase tracking-[0.15em] text-white/30 font-bold">
+                              {tLink(link.ty as any)}
                             </span>
                           </div>
                           {details?.[getLinkId(link)]?.label && (
-                            <div className="mt-2 text-xs text-white/52">{details[getLinkId(link)].label}</div>
+                            <div className="mt-1.5 text-[11px] leading-relaxed text-white/45 italic line-clamp-1">{details[getLinkId(link)].label}</div>
                           )}
                         </button>
                       )
@@ -231,40 +238,36 @@ export function DetailsPanel({
             {infoLink && (
               <div className="space-y-4">
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.24em] text-white/35">Relation Edge</div>
-                  <div className="mt-2 text-2xl font-semibold text-white">
+                  <div className="text-[10px] uppercase tracking-[0.24em] text-white/35">{tCommon('relHierarchy')}</div>
+                  <div className="mt-2 text-lg font-bold text-white tracking-tight">
                     {visibleNodeMap.get(getEndpointId(infoLink.s))?.n}
-                    {' '}
-                    →
-                    {' '}
+                    <span className="text-white/20 mx-1">→</span>
                     {visibleNodeMap.get(getEndpointId(infoLink.t))?.n}
                   </div>
                 </div>
 
                 <div className="grid gap-2">
                   <div className="border border-white/10 bg-white/4 p-3">
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">关系类型</div>
-                    <div className="mt-2 text-lg font-semibold text-[#7df2c0]">
-                      {infoLink.ty === 'evolution' ? '进化关系' : (infoLink.ty === 'ability-link' ? '特性关联' : '属性归属')}
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">{tCommon('relationLink')}</div>
+                    <div className="mt-1 text-base font-bold text-[#7df2c0]">
+                      {tLink(infoLink.ty as any)}
                     </div>
                   </div>
                   {infoLink.ty === 'evolution' && (
                     <>
                       <div className="border border-white/10 bg-white/4 p-3">
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">触发方式</div>
-                        <div className="mt-2 text-lg font-semibold text-white">{details?.[getLinkId(infoLink)]?.trigger || '未知'}</div>
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+                          {locale === 'zh' ? '触发方式' : (locale === 'ja' ? '進化条件' : 'Trigger')}
+                        </div>
+                        <div className="mt-1 text-base font-medium text-white">{details?.[getLinkId(infoLink)]?.trigger || '...'}</div>
                       </div>
                       <div className="border border-white/10 bg-white/4 p-3">
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">条件摘要</div>
-                        <div className="mt-2 text-sm text-white/72">{details?.[getLinkId(infoLink)]?.label || '无额外说明'}</div>
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+                          {locale === 'zh' ? '详细条件说明' : (locale === 'ja' ? '詳細条件' : 'Summary')}
+                        </div>
+                        <div className="mt-1 text-xs leading-relaxed text-white/72">{details?.[getLinkId(infoLink)]?.label || '...'}</div>
                       </div>
                     </>
-                  )}
-                  {infoLink.ty === 'ability-link' && (
-                    <div className="border border-white/10 bg-white/4 p-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">特性类型</div>
-                      <div className="mt-2 text-lg font-semibold text-white">{details?.[getLinkId(infoLink)]?.isHidden ? '隐藏特性 (梦特)' : '普通特性'}</div>
-                    </div>
                   )}
                 </div>
               </div>
