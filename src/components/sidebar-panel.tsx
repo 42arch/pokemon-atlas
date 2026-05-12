@@ -9,7 +9,33 @@ import { LocaleSwitcher } from '@/components/ui/locale-switcher'
 import { generationLabel } from '@/lib/graph-utils'
 import { cn } from '@/lib/utils'
 
-// ... (SidebarPanelProps omitted for brevity but preserved)
+interface SidebarPanelProps {
+  query: string
+  setQuery: (val: string) => void
+  setConfirmedQuery: (val: string) => void
+  isDropdownVisible: boolean
+  setIsDropdownVisible: (val: boolean) => void
+  searchResults: GraphNode[]
+  focusNode: (node: GraphNode) => void
+  details: Record<string, NodeDetails> | null
+  showTypeLinks: boolean
+  setShowTypeLinks: Dispatch<SetStateAction<boolean>>
+  showEvolutionLinks: boolean
+  setShowEvolutionLinks: Dispatch<SetStateAction<boolean>>
+  showAbilityLinks: boolean
+  setShowAbilityLinks: Dispatch<SetStateAction<boolean>>
+  showMoveLinks: boolean
+  setShowMoveLinks: Dispatch<SetStateAction<boolean>>
+  generationFilter: number | 'all'
+  setGenerationFilter: (val: number | 'all') => void
+  generations: number[]
+  stats: {
+    pokemonCount: number
+    typeCount: number
+    abilityCount: number
+    moveCount: number
+  }
+}
 
 export function SidebarPanel({
   query,
