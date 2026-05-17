@@ -1,8 +1,8 @@
 'use client'
 
 import { useLocale } from 'next-intl'
-import { useRouter, usePathname, routing } from '@/navigation'
 import { cn } from '@/lib/utils'
+import { routing, usePathname, useRouter } from '@/navigation'
 
 export function LocaleSwitcher() {
   const locale = useLocale()
@@ -10,21 +10,20 @@ export function LocaleSwitcher() {
   const pathname = usePathname()
 
   const switchLocale = (nextLocale: string) => {
-    // @ts-ignore - next-intl navigation types can be strict
     router.replace(pathname, { locale: nextLocale })
   }
 
   return (
-    <div className="flex items-center gap-1 bg-white/5 p-1 rounded-md border border-white/10 w-fit">
-      {routing.locales.map((l) => (
+    <div className="flex w-fit items-center gap-1 rounded-md border border-[var(--atlas-border)] bg-[var(--atlas-panel-soft)] p-1">
+      {routing.locales.map(l => (
         <button
           key={l}
           onClick={() => switchLocale(l)}
           className={cn(
-            "px-2 py-0.5 text-[9px] font-bold uppercase transition-all rounded",
-            locale === l 
-              ? "bg-[#89b4ff] text-black shadow-[0_0_8px_rgba(137,180,255,0.4)]" 
-              : "text-white/40 hover:text-white hover:bg-white/5"
+            'rounded-sm px-2 py-0.5 text-[9px] font-bold uppercase transition-all',
+            locale === l
+              ? 'bg-[var(--atlas-yellow)] text-[#111511] shadow-[0_0_14px_rgba(246,201,69,0.25)]'
+              : 'text-[var(--atlas-faint)] hover:bg-white/5 hover:text-[var(--atlas-text)]',
           )}
         >
           {l}

@@ -1,15 +1,20 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import type { GraphLink, GraphNode } from './pixi-graph'
 import type { NodeDetails } from '@/lib/graph-utils'
+import { FunnelSimpleIcon, InfoIcon, MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
 import { useTranslations } from 'next-intl'
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { getEndpointId, getLinkId } from '@/lib/graph-utils'
+import { Button } from '@/components/ui/button'
+import { TypeTag } from '@/components/ui/type-tag'
+import { GENERATIONS_LIST } from '@/lib/constants'
+import { generationLabel, getEndpointId, getHomeSpriteUrl, getLinkId } from '@/lib/graph-utils'
 import { DetailsPanel } from './details-panel'
 import { LegendPanel } from './legend-panel'
 import PixiGraph from './pixi-graph'
-import { GENERATIONS_LIST } from '@/lib/constants'
 import { SidebarPanel } from './sidebar-panel'
+import { LocaleSwitcher } from './ui/locale-switcher'
 
 interface GraphPayload {
   metadata: {
@@ -38,6 +43,7 @@ export default function PokemonGraph({ locale = 'zh' }: { locale?: string }) {
   const [showMoveLinks, setShowMoveLinks] = useState(false)
   const [generationFilter, setGenerationFilter] = useState<'all' | number>('all')
   const [isDropdownVisible, setIsDropdownVisible] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<'none' | 'search' | 'filters' | 'legend'>('none')
   const deferredQuery = useDeferredValue(confirmedQuery)
   const t = useTranslations('Common')
 
@@ -61,7 +67,8 @@ export default function PokemonGraph({ locale = 'zh' }: { locale?: string }) {
     fetch(`/node-details-${locale}.json`)
       .then(res => res.json())
       .then((data: Record<string, NodeDetails>) => {
-        if (!active) return
+        if (!active)
+          return
         setDetails(data)
       })
       .catch(err => console.error('Failed to load node details', err))
@@ -316,8 +323,8 @@ export default function PokemonGraph({ locale = 'zh' }: { locale?: string }) {
 
   if (!payload) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#060816] text-white">
-        <div className="text-sm tracking-[0.22em] text-white/40 uppercase">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--atlas-bg)] text-[var(--atlas-text)]">
+        <div className="rounded-lg border border-[var(--atlas-border)] bg-[var(--atlas-panel)] px-5 py-4 text-sm uppercase tracking-[0.22em] text-[var(--atlas-muted)]">
           {t('stats.loading')}
         </div>
       </div>
@@ -325,31 +332,31 @@ export default function PokemonGraph({ locale = 'zh' }: { locale?: string }) {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#060816] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(70,149,255,0.28),_transparent_34%),radial-gradient(circle_at_82%_12%,_rgba(255,94,61,0.18),_transparent_28%),radial-gradient(circle_at_bottom,_rgba(255,211,71,0.12),_transparent_32%)]" />
-      <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:40px_40px]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,7,18,0.1)_0%,rgba(4,7,18,0.86)_100%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[var(--atlas-bg)] text-[var(--atlas-text)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(226,58,58,0.18),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(246,201,69,0.14),transparent_28%),radial-gradient(circle_at_50%_100%,rgba(53,196,106,0.12),transparent_36%)]" />
+      <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(244,241,232,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(244,241,232,0.12)_1px,transparent_1px)] [background-size:32px_32px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,5,7,0.18)_0%,rgba(2,5,7,0.72)_100%)]" />
 
       <main className="relative z-10 min-h-screen w-full overflow-hidden">
         {/* Full-screen Graph Scene */}
         <div className="absolute inset-0 z-0">
           <PixiGraph
-                  nodes={filteredGraph.nodes as unknown as GraphNode[]}
-                  links={filteredGraph.links as unknown as GraphLink[]}
-                  selectedNodeId={selectedNodeId}
-                  onNodeClick={(node) => {
-                    if (node)
-                      focusNode(node)
-                  }}
-                  onLinkClick={(link) => {
-                    setSelectedNodeId(null)
-                    setSelectedLinkId(link ? getLinkId(link as unknown as GraphLink) : null)
-                  }}
-                />
+            nodes={filteredGraph.nodes as unknown as GraphNode[]}
+            links={filteredGraph.links as unknown as GraphLink[]}
+            selectedNodeId={selectedNodeId}
+            onNodeClick={(node) => {
+              if (node)
+                focusNode(node)
+            }}
+            onLinkClick={(link) => {
+              setSelectedNodeId(null)
+              setSelectedLinkId(link ? getLinkId(link as unknown as GraphLink) : null)
+            }}
+          />
         </div>
 
         {/* Left Sidebar */}
-        <section className="pointer-events-none absolute bottom-4 left-4 top-4 z-10 flex w-80 flex-col justify-between hidden-scrollbar overflow-y-auto">
+        <section className="pointer-events-none absolute bottom-4 left-4 top-4 z-10 hidden w-80 flex-col justify-between overflow-y-auto lg:flex hidden-scrollbar">
           <div className="pointer-events-auto flex flex-col gap-4">
             <SidebarPanel
               query={query}
@@ -379,6 +386,7 @@ export default function PokemonGraph({ locale = 'zh' }: { locale?: string }) {
         </section>
 
         <DetailsPanel
+          className="hidden lg:flex"
           infoNode={infoNode}
           infoLink={infoLink}
           details={details}
@@ -394,7 +402,316 @@ export default function PokemonGraph({ locale = 'zh' }: { locale?: string }) {
             setSelectedLinkId(linkId)
           }}
         />
+
+        <MobileTopBar
+          title={t('title')}
+          onSearch={() => setMobilePanel('search')}
+          onFilters={() => setMobilePanel('filters')}
+          onLegend={() => setMobilePanel('legend')}
+        />
+
+        {mobilePanel === 'search' && (
+          <MobileOverlay title={t('searchPlaceholder')} onClose={() => setMobilePanel('none')}>
+            <MobileSearchPanel
+              query={query}
+              setQuery={setQuery}
+              setConfirmedQuery={setConfirmedQuery}
+              searchResults={searchResults}
+              focusNode={focusNode}
+              details={details}
+              onDone={() => setMobilePanel('none')}
+            />
+          </MobileOverlay>
+        )}
+
+        {mobilePanel === 'filters' && (
+          <MobileOverlay title={t('relHierarchy')} onClose={() => setMobilePanel('none')}>
+            <SidebarPanel
+              className="border-0 bg-transparent shadow-none"
+              query={query}
+              setQuery={setQuery}
+              setConfirmedQuery={setConfirmedQuery}
+              isDropdownVisible={false}
+              setIsDropdownVisible={setIsDropdownVisible}
+              searchResults={searchResults}
+              focusNode={focusNode}
+              details={details}
+              showTypeLinks={showTypeLinks}
+              setShowTypeLinks={setShowTypeLinks}
+              showEvolutionLinks={showEvolutionLinks}
+              setShowEvolutionLinks={setShowEvolutionLinks}
+              showAbilityLinks={showAbilityLinks}
+              setShowAbilityLinks={setShowAbilityLinks}
+              showMoveLinks={showMoveLinks}
+              setShowMoveLinks={setShowMoveLinks}
+              generationFilter={generationFilter}
+              setGenerationFilter={setGenerationFilter}
+              generations={generations}
+              stats={stats}
+            />
+          </MobileOverlay>
+        )}
+
+        {mobilePanel === 'legend' && (
+          <MobileOverlay title={t('relationLink')} onClose={() => setMobilePanel('none')}>
+            <LegendPanel />
+          </MobileOverlay>
+        )}
+
+        <MobileDetailsSheet
+          infoNode={infoNode}
+          infoLink={infoLink}
+          details={details}
+          selectedNodeLinks={selectedNodeLinks}
+          visibleNodeMap={visibleNodeMap}
+        />
       </main>
+    </div>
+  )
+}
+
+function MobileTopBar({
+  title,
+  onSearch,
+  onFilters,
+  onLegend,
+}: {
+  title: string
+  onSearch: () => void
+  onFilters: () => void
+  onLegend: () => void
+}) {
+  return (
+    <header className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-3 lg:hidden">
+      <div className="atlas-panel pointer-events-auto rounded-lg px-3 py-2">
+        <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--atlas-yellow)]">Pokédex Lab</div>
+        <div className="mt-0.5 font-heading text-lg font-bold leading-tight text-[var(--atlas-text)]">{title}</div>
+        <div className="mt-2">
+          <LocaleSwitcher />
+        </div>
+      </div>
+      <div className="atlas-panel pointer-events-auto flex items-center gap-1 rounded-lg p-1.5">
+        <Button size="icon-sm" variant="ghost" className="rounded-md text-[var(--atlas-muted)] hover:bg-white/10 hover:text-[var(--atlas-yellow)]" onClick={onSearch} aria-label="Search">
+          <MagnifyingGlassIcon className="size-4" />
+        </Button>
+        <Button size="icon-sm" variant="ghost" className="rounded-md text-[var(--atlas-muted)] hover:bg-white/10 hover:text-[var(--atlas-yellow)]" onClick={onFilters} aria-label="Filters">
+          <FunnelSimpleIcon className="size-4" />
+        </Button>
+        <Button size="icon-sm" variant="ghost" className="rounded-md text-[var(--atlas-muted)] hover:bg-white/10 hover:text-[var(--atlas-yellow)]" onClick={onLegend} aria-label="Legend">
+          <InfoIcon className="size-4" />
+        </Button>
+      </div>
+    </header>
+  )
+}
+
+function MobileOverlay({
+  title,
+  children,
+  onClose,
+}: {
+  title: string
+  children: ReactNode
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-30 flex items-end bg-black/45 px-3 pb-3 pt-20 lg:hidden">
+      <section className="atlas-panel-strong max-h-[78vh] w-full overflow-y-auto rounded-xl p-3 hidden-scrollbar">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--atlas-muted)]">{title}</h2>
+          <Button size="icon-sm" variant="ghost" className="rounded-md text-[var(--atlas-muted)] hover:bg-white/10 hover:text-[var(--atlas-text)]" onClick={onClose} aria-label="Close">
+            <XIcon className="size-4" />
+          </Button>
+        </div>
+        {children}
+      </section>
+    </div>
+  )
+}
+
+function MobileSearchPanel({
+  query,
+  setQuery,
+  setConfirmedQuery,
+  searchResults,
+  focusNode,
+  details,
+  onDone,
+}: {
+  query: string
+  setQuery: (val: string) => void
+  setConfirmedQuery: (val: string) => void
+  searchResults: GraphNode[]
+  focusNode: (node: GraphNode) => void
+  details: Record<string, NodeDetails> | null
+  onDone: () => void
+}) {
+  const t = useTranslations('Common')
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="relative">
+        <input
+          autoFocus
+          value={query}
+          onChange={event => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              setConfirmedQuery(query)
+              onDone()
+            }
+          }}
+          placeholder={t('searchPlaceholder')}
+          className="w-full rounded-lg border border-[var(--atlas-border)] bg-black/25 py-3 pl-3 pr-11 text-base text-[var(--atlas-text)] outline-none placeholder:text-[var(--atlas-faint)] focus:border-[var(--atlas-yellow)]/60"
+        />
+        <button
+          type="button"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-[var(--atlas-muted)]"
+          onClick={() => {
+            setConfirmedQuery(query)
+            onDone()
+          }}
+        >
+          <MagnifyingGlassIcon className="size-4" />
+        </button>
+      </div>
+      <div className="flex max-h-[52vh] flex-col gap-2 overflow-y-auto hidden-scrollbar">
+        {searchResults.length === 0
+          ? (
+              <div className="rounded-lg border border-[var(--atlas-border)] bg-[var(--atlas-panel-soft)] p-4 text-sm text-[var(--atlas-muted)]">{t('noResults')}</div>
+            )
+          : searchResults.map(node => (
+              <button
+                key={node.i}
+                type="button"
+                className="flex items-center justify-between rounded-lg border border-[var(--atlas-border)] bg-[var(--atlas-panel-soft)] px-3 py-3 text-left"
+                onClick={() => {
+                  setQuery(node.n)
+                  setConfirmedQuery(node.n)
+                  focusNode(node)
+                  onDone()
+                }}
+              >
+                <span className="text-sm font-semibold text-[var(--atlas-text)]">{node.n}</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--atlas-faint)]">
+                  {node.it ? t('types') : node.ia ? t('abilities') : node.im ? t('moves') : details?.[node.i] ? generationLabel(details[node.i].generation) : ''}
+                </span>
+              </button>
+            ))}
+      </div>
+    </div>
+  )
+}
+
+function MobileDetailsSheet({
+  infoNode,
+  infoLink,
+  details,
+  selectedNodeLinks,
+  visibleNodeMap,
+}: {
+  infoNode: GraphNode | null
+  infoLink: GraphLink | null
+  details: Record<string, NodeDetails> | null
+  selectedNodeLinks: GraphLink[]
+  visibleNodeMap: Map<string, GraphNode>
+}) {
+  const t = useTranslations('Details')
+  const tCommon = useTranslations('Common')
+  const tLink = useTranslations('LinkTypes')
+
+  if (!infoNode && !infoLink) {
+    return (
+      <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 lg:hidden">
+        <div className="atlas-panel rounded-xl px-4 py-3 text-xs text-[var(--atlas-muted)]">
+          {tCommon('inspectHint')}
+        </div>
+      </div>
+    )
+  }
+
+  const nodeDetails = infoNode ? details?.[infoNode.i] : null
+  const relationLabel = infoLink ? tLink(infoLink.ty as any) : null
+
+  return (
+    <section className="pointer-events-none absolute inset-x-3 bottom-3 z-20 lg:hidden">
+      <div className="atlas-panel pointer-events-auto max-h-[44vh] overflow-y-auto rounded-xl p-3 hidden-scrollbar">
+        {infoNode && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              {!infoNode.it && !infoNode.ia && infoNode.s && (
+                <div className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-[var(--atlas-border)] bg-white/5">
+                  <img src={getHomeSpriteUrl(infoNode.s)} alt={infoNode.n} className="size-14 object-contain" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-heading text-xl font-bold text-[var(--atlas-text)]">{infoNode.n}</div>
+                {nodeDetails && (
+                  <div className="mt-1 text-xs text-[var(--atlas-muted)]">
+                    {nodeDetails.pokedexNumber && `${t('pokedex')} #${nodeDetails.pokedexNumber}`}
+                    {nodeDetails.generation && ` · ${t('generation')} ${nodeDetails.generation}`}
+                  </div>
+                )}
+              </div>
+            </div>
+            {nodeDetails?.types && (
+              <div className="flex flex-wrap gap-2">
+                {nodeDetails.types.map(type => <TypeTag key={type} name={type} />)}
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-2">
+              <MobileStat label={t('stats.evolutions')} value={selectedNodeLinks.filter(link => link.ty === 'evolution').length} color="var(--atlas-green)" />
+              <MobileStat label={t('stats.abilities')} value={nodeDetails?.abilities?.length || 0} color="var(--atlas-purple)" />
+              <MobileStat label={t('stats.moves')} value={nodeDetails?.moves?.length || 0} color="var(--atlas-orange)" />
+            </div>
+            {selectedNodeLinks.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--atlas-faint)]">{t('relationLink')}</div>
+                {selectedNodeLinks.slice(0, 5).map((link) => {
+                  const source = visibleNodeMap.get(getEndpointId(link.s))
+                  const target = visibleNodeMap.get(getEndpointId(link.t))
+                  if (!source || !target)
+                    return null
+                  return (
+                    <div key={getLinkId(link)} className="rounded-md border border-[var(--atlas-border)] bg-[var(--atlas-panel-soft)] px-3 py-2 text-xs text-[var(--atlas-muted)]">
+                      <span className="text-[var(--atlas-text)]">{source.n}</span>
+                      <span className="mx-1 text-[var(--atlas-faint)]">→</span>
+                      <span className="text-[var(--atlas-text)]">{target.n}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {infoLink && (
+          <div className="flex flex-col gap-3">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--atlas-yellow)]">{relationLabel}</div>
+              <div className="mt-1 font-heading text-lg font-bold text-[var(--atlas-text)]">
+                {visibleNodeMap.get(getEndpointId(infoLink.s))?.n}
+                <span className="mx-2 text-[var(--atlas-faint)]">→</span>
+                {visibleNodeMap.get(getEndpointId(infoLink.t))?.n}
+              </div>
+            </div>
+            {details?.[getLinkId(infoLink)]?.label && (
+              <p className="rounded-lg border border-[var(--atlas-border)] bg-[var(--atlas-panel-soft)] p-3 text-xs italic leading-relaxed text-[var(--atlas-muted)]">
+                {details[getLinkId(infoLink)].label}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function MobileStat({ label, value, color }: { label: string, value: number, color: string }) {
+  return (
+    <div className="rounded-md border border-[var(--atlas-border)] bg-[var(--atlas-panel-soft)] p-2">
+      <div className="truncate text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--atlas-faint)]">{label}</div>
+      <div className="mt-1 font-mono text-lg font-bold" style={{ color }}>{value}</div>
     </div>
   )
 }

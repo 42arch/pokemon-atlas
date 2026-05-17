@@ -10,6 +10,7 @@
     "moves": "Moves",
     "genFilter": "Generation Filter",
     "relHierarchy": "Relationship Hierarchy",
+    "inspectHint": "Tap a node or relation to inspect it.",
     "stats": {
       "pokemon": "Pokémon",
       "type": "Types",
@@ -30,6 +31,7 @@
     "pokemonNode": "Pokémon Node",
     "moveNode": "Move Node",
     "relationLink": "Relation Link",
+    "description": "Description",
     "phys": "Phys",
     "spec": "Spec",
     "stat": "Stat",

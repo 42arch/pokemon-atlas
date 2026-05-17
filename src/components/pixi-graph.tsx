@@ -6,6 +6,16 @@ import { useEffect, useRef, useState } from 'react'
 import { POKEMON_COLORS, SPRITE_URL_PREFIX, TYPE_COLORS, TYPES_LIST } from '@/lib/constants'
 
 const TEXT_VISIBILITY_THRESHOLD = 0.4
+const GRAPH_COLORS = {
+  type: 0x8DD7FF,
+  evolution: 0x35C46A,
+  form: 0xF6C945,
+  ability: 0xA56BFF,
+  move: 0xFF7A3D,
+  selection: 0xFFE45E,
+  label: 0xF4F1E8,
+  dimLink: 0x5D6D68,
+}
 
 function getSpriteUrl(sprite: string) {
   return `${SPRITE_URL_PREFIX}${sprite}.png`
@@ -53,6 +63,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
 
   const [isAppReady, setIsAppReady] = useState(false)
   const selectedNodeIdRef = useRef(externalSelectedNodeId)
+  const updateVisualsRef = useRef<(() => void) | null>(null)
   useEffect(() => {
     selectedNodeIdRef.current = externalSelectedNodeId
     updateVisualsRef.current?.()
@@ -65,7 +76,6 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
   const nodesContainerRef = useRef<PIXI.Container | null>(null)
   const nodeVisualsRef = useRef<Map<string, { container: PIXI.Container, highlight: PIXI.Graphics }>>(new Map())
   const textNodesRef = useRef<PIXI.Text[]>([])
-  const updateVisualsRef = useRef<(() => void) | null>(null)
   const lastViewportState = useRef({ x: 0, y: 0, scale: 0 })
 
   // 1. Initialize PIXI App
@@ -85,7 +95,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
         antialias: true,
-        preference: 'webgpu'
+        preference: 'webgpu',
       })
 
       if (isUnmounted || !containerRef.current) {
@@ -121,7 +131,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       let draggedNode: GraphNode | null = null
       let isNodeDragging = false
       let isPanning = false
-      let panStart = { x: 0, y: 0 }
+      const panStart = { x: 0, y: 0 }
 
       app.stage.on('pointerdown', (e) => {
         isPanning = true
@@ -280,7 +290,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       radius: n.it ? 18 : (n.ia ? 15 : (n.im ? 10 : Math.max(12, n.v * 1.5))),
       color: n.it
         ? (TYPE_COLORS[n.g] || '#89b4ff')
-        : (n.ia ? '#a855f7' : (n.im ? '#ff5e3d' : (POKEMON_COLORS[n.c || ''] || TYPE_COLORS[n.g] || '#475569'))),
+        : (n.ia ? '#a56bff' : (n.im ? '#ff7a3d' : (POKEMON_COLORS[n.c || ''] || TYPE_COLORS[n.g] || '#475569'))),
     }))
     const nodeMap = new Map(nodes.map(n => [n.i, n]))
     const validLinks = rawLinks
@@ -342,7 +352,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       else {
         highlightGraphics.circle(0, 0, r + 3)
       }
-      highlightGraphics.stroke({ width: 3, color: 0xFFE81C })
+      highlightGraphics.stroke({ width: 3, color: GRAPH_COLORS.selection, alpha: 0.95 })
       highlightGraphics.visible = selectedNodeIdRef.current === node.i
       nodeContainer.addChild(highlightGraphics)
 
@@ -365,7 +375,8 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
           const sprite = new PIXI.Sprite(texture)
           sprite.anchor.set(0.5)
           const size = (node.radius || 12) * 1.8
-          sprite.width = size; sprite.height = size
+          sprite.width = size
+          sprite.height = size
           const mask = new PIXI.Graphics().circle(0, 0, (node.radius || 12) * 0.9).fill({ color: 0xFFFFFF })
           nodeContainer.addChild(mask)
           sprite.mask = mask
@@ -373,11 +384,12 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         }).catch(() => {})
       }
       else if (node.it) {
-        // Load type sprite from types.webp
-        const typeIndex = TYPES_LIST.indexOf(node.n)
+        // Load type sprite from types.webp using the slug (node.g)
+        const typeIndex = TYPES_LIST.indexOf(node.g)
         if (typeIndex !== -1) {
           PIXI.Assets.load('/types.webp').then((baseTexture) => {
-            const frame = new PIXI.Rectangle(0, typeIndex * 50, 50, 50)
+            const frameSize = 50 // Original frame size in sprite
+            const frame = new PIXI.Rectangle(0, typeIndex * frameSize, frameSize, frameSize)
             const texture = new PIXI.Texture({
               source: baseTexture.source,
               frame,
@@ -395,10 +407,11 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
 
       const text = new PIXI.Text({
         text: node.n,
-        style: { fontFamily: '"JetBrains Mono", monospace', fontSize: node.it ? 14 : (node.ia ? 12 : (node.im ? 9 : 10)), fill: 0x94A3B8, align: 'center' },
+        style: { fontFamily: '"JetBrains Mono", monospace', fontSize: node.it ? 14 : (node.ia ? 12 : (node.im ? 9 : 10)), fill: GRAPH_COLORS.label, align: 'center' },
         resolution: window.devicePixelRatio * 2,
       })
-      text.anchor.set(0.5, 0); text.y = (node.radius || 12) + 4
+      text.anchor.set(0.5, 0)
+      text.y = (node.radius || 12) + 4
       text.visible = graphContainer.scale.x >= TEXT_VISIBILITY_THRESHOLD
       nodeContainer.addChild(text)
       textNodesRef.current.push(text)
@@ -429,7 +442,7 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       nodeContainer.addChild(shape)
     }
 
-    let highlightedLinks = new Set<GraphLink>()
+    const highlightedLinks = new Set<GraphLink>()
     const drawLinks = (force = false) => {
       const linkGraphics = linkGraphicsRef.current
       const graphContainer = graphContainerRef.current
@@ -441,11 +454,11 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       const { x, y } = graphContainer.position
       const isSimulationRunning = simulationRef.current && simulationRef.current.alpha() > 0.001
       const hasViewChanged = lastViewportState.current.x !== x || lastViewportState.current.y !== y || lastViewportState.current.scale !== currentScale
-      
+
       if (!force && !isSimulationRunning && !hasViewChanged) {
         return
       }
-      
+
       lastViewportState.current = { x, y, scale: currentScale }
       linkGraphics.clear()
 
@@ -456,23 +469,43 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         const source = link.source as GraphNode
         const target = link.target as GraphNode
         if (source.x != null && source.y != null && target.x != null && target.y != null) {
-          let color = 0x60A5FA; let alpha = 0.15; let width = 1
-          if (link.ty === 'evolution') { color = 0x10B981; alpha = 0.4 }
-          else if (link.ty === 'form-link') { color = 0xF59E0B; alpha = 0.35 }
-          else if (link.ty === 'ability-link') { color = 0xA855F7; alpha = 0.3 }
-          else if (link.ty === 'move-link') { color = 0xFF5E3D; alpha = 0.25 }
+          let color = GRAPH_COLORS.dimLink
+          let alpha = 0.28
+          let width = 1
+
+          if (link.ty === 'type-link') {
+            color = GRAPH_COLORS.type
+            alpha = 0.24
+          }
+          else if (link.ty === 'evolution') {
+            color = GRAPH_COLORS.evolution
+            alpha = 0.5
+          }
+          else if (link.ty === 'form-link') {
+            color = GRAPH_COLORS.form
+            alpha = 0.42
+          }
+          else if (link.ty === 'ability-link') {
+            color = GRAPH_COLORS.ability
+            alpha = 0.36
+          }
+          else if (link.ty === 'move-link') {
+            color = GRAPH_COLORS.move
+            alpha = 0.32
+          }
 
           if (selectedNodeIdRef.current) {
             if (highlightedLinks.has(link)) {
               alpha = Math.min(1.0, alpha * 2.5)
               width = 2
-              color = link.ty === 'evolution' ? 0x34D399 : (link.ty === 'form-link' ? 0xFBCD5D : (link.ty === 'ability-link' ? 0xC084FC : (link.ty === 'move-link' ? 0xFF8A71 : 0x93C5FD)))
+              color = link.ty === 'evolution' ? 0x63E58D : (link.ty === 'form-link' ? 0xFFE45E : (link.ty === 'ability-link' ? 0xC7A0FF : (link.ty === 'move-link' ? 0xFF9A71 : 0xBDEBFF)))
             }
             else { alpha *= 0.1 } // Dim even more
           }
 
           // Skip very faint links when zoomed out
-          if (alpha < 0.03 && currentScale < 0.3) continue
+          if (alpha < 0.03 && currentScale < 0.3)
+            continue
 
           const key = `${color}-${alpha}-${width}`
           if (!styleGroups.has(key)) {
@@ -496,7 +529,9 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
 
     const updateVisuals = () => {
       const localId = selectedNodeIdRef.current
-      nodeVisualsRef.current.forEach((vis, id) => { vis.highlight.visible = id === localId })
+      nodeVisualsRef.current.forEach((vis, id) => {
+        vis.highlight.visible = id === localId
+      })
       highlightedLinks.clear()
       if (localId) {
         const visited = new Set<string>([localId])
@@ -505,16 +540,21 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
         while (head < queue.length) {
           const currId = queue[head++]
           for (const link of validLinks) {
-            const sId = (link.source as GraphNode).i; const tId = (link.target as GraphNode).i
+            const sId = (link.source as GraphNode).i
+            const tId = (link.target as GraphNode).i
             if ((link.ty === 'evolution' || link.ty === 'form-link') && (sId === currId || tId === currId)) {
               highlightedLinks.add(link)
               const nextId = sId === currId ? tId : sId
-              if (!visited.has(nextId)) { visited.add(nextId); queue.push(nextId) }
+              if (!visited.has(nextId)) {
+                visited.add(nextId)
+                queue.push(nextId)
+              }
             }
           }
         }
         validLinks.forEach((link) => {
-          const sId = (link.source as GraphNode).i; const tId = (link.target as GraphNode).i
+          const sId = (link.source as GraphNode).i
+          const tId = (link.target as GraphNode).i
           if ((sId === localId || tId === localId) && (link.ty === 'type-link' || link.ty === 'ability-link' || link.ty === 'move-link'))
             highlightedLinks.add(link)
         })
@@ -528,7 +568,8 @@ export default function PixiGraph({ nodes: rawNodes, links: rawLinks, selectedNo
       nodes.forEach((node) => {
         const visual = nodeVisualsRef.current.get(node.i)
         if (visual && node.x != null && node.y != null) {
-          visual.container.x = node.x; visual.container.y = node.y
+          visual.container.x = node.x
+          visual.container.y = node.y
         }
       })
     })

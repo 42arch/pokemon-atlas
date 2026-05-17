@@ -50,6 +50,10 @@ export function getSpriteUrl(sprite: string) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${sprite}.png`
 }
 
+export function getHomeSpriteUrl(sprite: string) {
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${sprite}.png`
+}
+
 export function generationLabel(generation?: number) {
   return generation ? `Gen ${generation}` : 'Unknown Gen'
 }

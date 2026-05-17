@@ -10,6 +10,7 @@
     "moves": "招式",
     "genFilter": "世代筛选",
     "relHierarchy": "关系层级",
+    "inspectHint": "点击节点或关系线查看详情",
     "stats": {
       "pokemon": "宝可梦",
       "type": "属性",
@@ -30,6 +31,7 @@
     "pokemonNode": "宝可梦节点",
     "moveNode": "招式节点",
     "relationLink": "关系连线",
+    "description": "说明",
     "phys": "物理",
     "spec": "特殊",
     "stat": "变化",

@@ -1,8 +1,8 @@
-import { useTranslations } from 'next-intl'
 import type { Dispatch, SetStateAction } from 'react'
 import type { GraphNode } from './pixi-graph'
 import type { NodeDetails } from '@/lib/graph-utils'
 import { MagnifyingGlassIcon } from '@phosphor-icons/react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { LocaleSwitcher } from '@/components/ui/locale-switcher'
@@ -10,6 +10,7 @@ import { generationLabel } from '@/lib/graph-utils'
 import { cn } from '@/lib/utils'
 
 interface SidebarPanelProps {
+  className?: string
   query: string
   setQuery: (val: string) => void
   setConfirmedQuery: (val: string) => void
@@ -38,6 +39,7 @@ interface SidebarPanelProps {
 }
 
 export function SidebarPanel({
+  className,
   query,
   setQuery,
   setConfirmedQuery,
@@ -62,16 +64,19 @@ export function SidebarPanel({
   const t = useTranslations('Common')
 
   return (
-    <Card className="border border-white/10 bg-black/40 backdrop-blur-xl shadow-xl">
+    <Card className={cn('atlas-panel rounded-lg py-4', className)}>
       <CardHeader className="pb-3">
-        <div className="space-y-3">
-          <h1 className="text-2xl font-bold tracking-tight text-white">{t('title')}</h1>
+        <div className="flex flex-col gap-3">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--atlas-yellow)]">Pokédex Lab</div>
+            <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-[var(--atlas-text)]">{t('title')}</h1>
+          </div>
           <LocaleSwitcher />
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="flex flex-col gap-6">
         {/* Search Section */}
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <div className="relative group">
             <input
               value={query}
@@ -86,7 +91,7 @@ export function SidebarPanel({
                 }
               }}
               placeholder={t('searchPlaceholder')}
-              className="w-full rounded border border-white/10 bg-white/5 pl-3 pr-10 py-2 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#89b4ff] focus:bg-white/10 transition-all"
+              className="w-full rounded-md border border-[var(--atlas-border)] bg-black/20 py-2.5 pl-3 pr-10 text-sm text-[var(--atlas-text)] outline-none transition-all placeholder:text-[var(--atlas-faint)] focus:border-[var(--atlas-yellow)]/60 focus:bg-black/30"
             />
             <button
               type="button"
@@ -94,18 +99,18 @@ export function SidebarPanel({
                 setConfirmedQuery(query)
                 setIsDropdownVisible(false)
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-white/40 hover:text-[#89b4ff] transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1.5 text-[var(--atlas-faint)] transition-colors hover:text-[var(--atlas-yellow)]"
             >
               <MagnifyingGlassIcon className="size-4" />
             </button>
 
             {isDropdownVisible && searchResults.length > 0 && (
-              <div className="absolute inset-x-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-lg border border-white/12 bg-[#0a1022]/95 p-1 shadow-2xl backdrop-blur-xl">
+              <div className="atlas-panel-strong absolute inset-x-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-lg p-1">
                 {searchResults.map(node => (
                   <button
                     key={node.i}
                     type="button"
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white"
+                    className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-[var(--atlas-muted)] transition hover:bg-white/10 hover:text-[var(--atlas-text)]"
                     onClick={() => {
                       setQuery(node.n)
                       setConfirmedQuery(node.n)
@@ -114,7 +119,7 @@ export function SidebarPanel({
                     }}
                   >
                     <span>{node.n}</span>
-                    <span className="text-[10px] uppercase tracking-[0.22em] text-white/35">
+                    <span className="text-[10px] uppercase tracking-[0.22em] text-[var(--atlas-faint)]">
                       {node.it ? t('types') : node.ia ? t('abilities') : node.im ? t('moves') : details?.[node.i] ? generationLabel(details[node.i].generation) : ''}
                     </span>
                   </button>
@@ -125,34 +130,34 @@ export function SidebarPanel({
         </div>
 
         {/* Filters Section */}
-        <div className="space-y-6 pt-2">
-          <div className="space-y-3">
-            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">{t('relHierarchy')}</div>
+        <div className="flex flex-col gap-6 pt-2">
+          <div className="flex flex-col gap-3">
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--atlas-faint)]">{t('relHierarchy')}</div>
             <div className="flex flex-wrap gap-2">
               <Button
-                variant={showTypeLinks ? 'default' : 'outline'}
-                className={cn('h-8 text-xs border-white/12', showTypeLinks && 'bg-[#ffcf5a] text-black hover:bg-[#ffcf5a]/90')}
+                variant="ghost"
+                className={cn('atlas-chip h-8 rounded-md text-xs', showTypeLinks && 'bg-[var(--atlas-type)] text-black hover:bg-[var(--atlas-type)]/90')}
                 onClick={() => setShowTypeLinks(value => !value)}
               >
                 {t('types')}
               </Button>
               <Button
-                variant={showEvolutionLinks ? 'default' : 'outline'}
-                className={cn('h-8 text-xs border-white/12', showEvolutionLinks && 'bg-[#7df2c0] text-black hover:bg-[#7df2c0]/90')}
+                variant="ghost"
+                className={cn('atlas-chip h-8 rounded-md text-xs', showEvolutionLinks && 'bg-[var(--atlas-green)] text-[#06100a] hover:bg-[var(--atlas-green)]/90')}
                 onClick={() => setShowEvolutionLinks(value => !value)}
               >
                 {t('evolutions')}
               </Button>
               <Button
-                variant={showAbilityLinks ? 'default' : 'outline'}
-                className={cn('h-8 text-xs border-white/12', showAbilityLinks && 'bg-[#a855f7] text-white hover:bg-[#a855f7]/90')}
+                variant="ghost"
+                className={cn('atlas-chip h-8 rounded-md text-xs', showAbilityLinks && 'bg-[var(--atlas-purple)] text-white hover:bg-[var(--atlas-purple)]/90')}
                 onClick={() => setShowAbilityLinks(value => !value)}
               >
                 {t('abilities')}
               </Button>
               <Button
-                variant={showMoveLinks ? 'default' : 'outline'}
-                className={cn('h-8 text-xs border-white/12', showMoveLinks && 'bg-[#ff5e3d] text-white hover:bg-[#ff5e3d]/90')}
+                variant="ghost"
+                className={cn('atlas-chip h-8 rounded-md text-xs', showMoveLinks && 'bg-[var(--atlas-orange)] text-[#160603] hover:bg-[var(--atlas-orange)]/90')}
                 onClick={() => setShowMoveLinks(value => !value)}
               >
                 {t('moves')}
@@ -160,13 +165,13 @@ export function SidebarPanel({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">{t('genFilter')}</div>
+          <div className="flex flex-col gap-3">
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--atlas-faint)]">{t('genFilter')}</div>
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
-                variant={generationFilter === 'all' ? 'default' : 'outline'}
-                className={cn('h-7 text-[10px] border-white/12', generationFilter === 'all' && 'bg-[#89b4ff] text-black hover:bg-[#89b4ff]/90 shadow-[0_0_12px_rgba(137,180,255,0.3)]')}
+                variant="ghost"
+                className={cn('atlas-chip h-7 rounded-md text-[10px]', generationFilter === 'all' && 'bg-[var(--atlas-yellow)] text-[#14110a] hover:bg-[var(--atlas-yellow)]/90')}
                 onClick={() => setGenerationFilter('all')}
               >
                 {t('all')}
@@ -175,32 +180,34 @@ export function SidebarPanel({
                 <Button
                   key={gen}
                   size="sm"
-                  variant={generationFilter === gen ? 'default' : 'outline'}
-                  className={cn('h-7 text-[10px] border-white/12', generationFilter === gen && 'bg-[#89b4ff] text-black hover:bg-[#89b4ff]/90')}
+                  variant="ghost"
+                  className={cn('atlas-chip h-7 rounded-md text-[10px]', generationFilter === gen && 'bg-[var(--atlas-yellow)] text-[#14110a] hover:bg-[var(--atlas-yellow)]/90')}
                   onClick={() => setGenerationFilter(gen)}
                 >
-                  {t('stats.genShort')} {gen}
+                  {t('stats.genShort')}
+                  {' '}
+                  {gen}
                 </Button>
               ))}
             </div>
           </div>
 
-          <div className="flex gap-2 pt-2 border-t border-white/5">
+          <div className="grid grid-cols-4 gap-2 border-t border-[var(--atlas-border)] pt-4">
             <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">{t('stats.pokemon')}</div>
-              <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.pokemonCount}</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--atlas-faint)]">{t('stats.pokemon')}</div>
+              <div className="mt-1 text-lg font-bold tracking-tight text-[var(--atlas-text)]">{stats.pokemonCount}</div>
             </div>
             <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">{t('stats.type')}</div>
-              <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.typeCount}</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--atlas-faint)]">{t('stats.type')}</div>
+              <div className="mt-1 text-lg font-bold tracking-tight text-[var(--atlas-type)]">{stats.typeCount}</div>
             </div>
             <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">{t('stats.ability')}</div>
-              <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.abilityCount}</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--atlas-faint)]">{t('stats.ability')}</div>
+              <div className="mt-1 text-lg font-bold tracking-tight text-[var(--atlas-purple)]">{stats.abilityCount}</div>
             </div>
             <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/25">{t('stats.move')}</div>
-              <div className="mt-0.5 text-lg font-semibold text-white/90">{stats.moveCount}</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--atlas-faint)]">{t('stats.move')}</div>
+              <div className="mt-1 text-lg font-bold tracking-tight text-[var(--atlas-orange)]">{stats.moveCount}</div>
             </div>
           </div>
         </div>

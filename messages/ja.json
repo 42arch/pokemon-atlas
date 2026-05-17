@@ -10,6 +10,7 @@
     "moves": "わざ",
     "genFilter": "世代フィルター",
     "relHierarchy": "関係階層",
+    "inspectHint": "ノードまたは関係リンクをタップして詳細を表示",
     "stats": {
       "pokemon": "ポケモン",
       "type": "タイプ",
@@ -30,6 +31,7 @@
     "pokemonNode": "ポケモンノード",
     "moveNode": "わざノード",
     "relationLink": "関係リンク",
+    "description": "説明",
     "phys": "物理",
     "spec": "特殊",
     "stat": "変化",
