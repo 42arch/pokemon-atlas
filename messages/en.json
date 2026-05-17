@@ -67,5 +67,10 @@
     "ability-link": "Ability",
     "move-link": "Move Learned",
     "form-link": "Form Change"
+  },
+  "Metadata": {
+    "title": "Pokémon Atlas - Interactive Visual Pokédex & Relation Graph",
+    "description": "Explore the vast, interconnected universe of Pokémon with Pokémon Atlas. An interactive, visual Pokédex and relationship graph featuring types, abilities, moves, and evolution chains.",
+    "keywords": "Pokémon Atlas, Pokémon, Pokédex, Evolution Chains, Pokémon Types, Pokémon Abilities, Interactive Pokémon Graph, Pokémon Database"
   }
 }

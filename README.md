@@ -7,7 +7,7 @@
 [中文文档](README.zh-CN.md)
 
 ### Welcome to the Pokémon Universe
-**Pokémon Graph** is an interactive, visual encyclopedia that lets you explore the vast and interconnected world of Pokémon. Instead of browsing traditional lists or wikis, you can dive into a massive, interconnected constellation of Pokémon, Types, and Abilities.
+**Pokémon Atlas** is an interactive, visual Pokédex that lets you explore the vast and interconnected world of Pokémon. Instead of browsing traditional lists or wikis, you can dive into a massive, interconnected constellation of Pokémon, Types, and Abilities.
 
 ### What You Can Do
 - **Explore Relationships**: See how different Pokémon are connected through evolution paths, shared types, and common abilities (including hidden abilities).

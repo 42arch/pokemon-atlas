@@ -68,7 +68,6 @@ export function SidebarPanel({
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-3">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--atlas-yellow)]">Pokédex Lab</div>
             <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-[var(--atlas-text)]">{t('title')}</h1>
           </div>
           <LocaleSwitcher />

@@ -484,7 +484,6 @@ function MobileTopBar({
   return (
     <header className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-3 lg:hidden">
       <div className="atlas-panel pointer-events-auto rounded-lg px-3 py-2">
-        <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--atlas-yellow)]">Pokédex Lab</div>
         <div className="mt-0.5 font-heading text-lg font-bold leading-tight text-[var(--atlas-text)]">{title}</div>
         <div className="mt-2">
           <LocaleSwitcher />
